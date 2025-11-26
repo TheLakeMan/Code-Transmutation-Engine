@@ -457,7 +457,7 @@ const decodeState = (base64: string): SavedSession | null => {
 };
 
 const App: React.FC = () => {
-  const [inputText, setInputText] = useState(DEFAULT_TEXT);
+  const [inputText, setInputText] = useState("");
   const [cycles, setCycles] = useState(2);
   const [heatTemp, setHeatTemp] = useState(1.1);
   const [coolTemp, setCoolTemp] = useState(0.3);
@@ -487,7 +487,7 @@ const App: React.FC = () => {
   // Initialize lastSavedStr on mount with default values
   useEffect(() => {
     const initialContent = {
-        inputText: DEFAULT_TEXT,
+        inputText: "",
         cycles: 2,
         heatTemp: 1.1,
         coolTemp: 0.3,
