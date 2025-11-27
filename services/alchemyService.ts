@@ -1,8 +1,6 @@
+
 import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { IgnitionUpdateCallback, ProcessPhase, CycleData } from "../types";
-
-// Using gemini-2.5-flash as the workhorse for responsiveness.
-const MODEL_NAME = "gemini-2.5-flash";
 
 export class AlchemyEngine {
   private shouldStop: boolean = false;
@@ -16,6 +14,7 @@ export class AlchemyEngine {
     cycles: number,
     heatTemp: number,
     coolTemp: number,
+    activeModel: string,
     onUpdate: IgnitionUpdateCallback
   ) {
     this.shouldStop = false;
@@ -35,6 +34,7 @@ export class AlchemyEngine {
       currentState: currentText,
       history: [],
       error: undefined,
+      activeModel,
     });
 
     // Safety settings to allow creative/hallucinatory code without blocking
@@ -63,7 +63,7 @@ QUANTUM_DISTORTION: Mutate the phrasing with extreme prejudice. Employ analogies
 CRITICAL_INVARIANT: The core semantic invariant must persist, but the linguistic topology must be shattered.`;
 
         const responseHeat = await ai.models.generateContent({
-          model: MODEL_NAME,
+          model: activeModel,
           contents: [{
             role: 'user',
             parts: [{ text: `INPUT_CONSTRUCT:\n${currentText}` }]
@@ -99,7 +99,7 @@ WARNING: Factual invention is a critical system failure. Any conceptual drift in
 Output ONLY the code, no markdown explanation.`;
 
         const responseCool = await ai.models.generateContent({
-          model: MODEL_NAME,
+          model: activeModel,
           contents: [{
             role: 'user',
             parts: [{ text: promptCool }]

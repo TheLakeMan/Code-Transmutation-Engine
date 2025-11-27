@@ -7,6 +7,8 @@ export enum ProcessPhase {
   ERROR = 'ERROR'
 }
 
+export type Language = 'python' | 'javascript' | 'typescript' | 'markdown' | 'json' | 'c' | 'cpp' | 'java' | 'ruby' | 'go' | 'rust';
+
 export interface CycleData {
   cycleNumber: number;
   heatOutput: string;
@@ -23,6 +25,7 @@ export interface IgnitionState {
   currentState: string;
   history: CycleData[];
   error?: string;
+  activeModel?: string;
 }
 
 export type IgnitionUpdateCallback = (update: Partial<IgnitionState>) => void;

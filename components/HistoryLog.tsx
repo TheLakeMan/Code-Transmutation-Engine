@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { CycleData } from '../types';
+import { CycleData, Language } from '../types';
 import { Maximize2 } from 'lucide-react';
 import { MaximizeModal } from './MaximizeModal';
 
 interface HistoryLogProps {
   history: CycleData[];
+  language?: Language;
 }
 
-export const HistoryLog: React.FC<HistoryLogProps> = ({ history }) => {
+export const HistoryLog: React.FC<HistoryLogProps> = ({ history, language }) => {
   const [modalState, setModalState] = useState<{ isOpen: boolean; title: string; content: string }>({
     isOpen: false,
     title: '',
@@ -78,6 +79,7 @@ export const HistoryLog: React.FC<HistoryLogProps> = ({ history }) => {
         title={modalState.title}
         content={modalState.content}
         onClose={closeModal}
+        language={language}
       />
     </>
   );

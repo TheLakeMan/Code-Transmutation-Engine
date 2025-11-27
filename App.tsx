@@ -3,8 +3,10 @@ import { AlchemyEngine } from './services/alchemyService';
 import { ProcessVisualizer } from './components/ProcessVisualizer';
 import { HistoryLog } from './components/HistoryLog';
 import { CodeEditor } from './components/CodeEditor';
-import { IgnitionState, ProcessPhase, SavedSession } from './types';
-import { FlaskConical, Play, Square, RotateCcw, AlertTriangle, Info, ThermometerSun, ThermometerSnowflake, Save, FolderOpen, Check, Link, Loader2, Code2, Copy, FileDown, Eraser } from 'lucide-react';
+import { IgnitionState, ProcessPhase, SavedSession, Language } from './types';
+import { FlaskConical, Play, Square, RotateCcw, AlertTriangle, Info, ThermometerSun, ThermometerSnowflake, Save, FolderOpen, Check, Link, Loader2, Code2, Copy, FileDown, Eraser, Key, Lock } from 'lucide-react';
+import { detectLanguage } from './utils/languageDetector';
+import { ExamplesDropdown } from './components/ExamplesDropdown';
 
 const DEFAULT_TEXT = `import os
 import google.generativeai as genai
@@ -390,6 +392,16 @@ def ignite_concept_anchored(frozen_text: str, cycles: int = 2) -> str:
 
 const alchemy = new AlchemyEngine();
 
+declare global {
+    interface AIStudio {
+        hasSelectedApiKey: () => Promise<boolean>;
+        openSelectKey: () => Promise<void>;
+    }
+    interface Window {
+      aistudio?: AIStudio;
+    }
+}
+
 // Reducer Actions
 type IgnitionAction = 
   | { type: 'UPDATE_STATE'; payload: Partial<IgnitionState> }
@@ -463,6 +475,11 @@ const App: React.FC = () => {
   const [coolTemp, setCoolTemp] = useState(0.3);
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [editorKey, setEditorKey] = useState(0);
+  const [language, setLanguage] = useState<Language>('python');
+
+  // Auth state
+  const [hasApiKey, setHasApiKey] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   const [state, dispatch] = useReducer(ignitionReducer, createInitialState(2));
 
@@ -479,10 +496,60 @@ const App: React.FC = () => {
       setTimeout(() => setNotification(null), 4000);
   };
 
+  // Check for API Key on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+        if (window.aistudio) {
+            try {
+                const hasKey = await window.aistudio.hasSelectedApiKey();
+                setHasApiKey(hasKey);
+            } catch (e) {
+                console.error("Auth check failed", e);
+            }
+        } else {
+            // Fallback for dev environment without bridge
+            setHasApiKey(true);
+        }
+        setIsCheckingAuth(false);
+    };
+    checkAuth();
+  }, []);
+
+  // Monitor for "Requested entity was not found" error which implies invalid key
+  useEffect(() => {
+    if (state.error && state.error.includes("Requested entity was not found")) {
+        setHasApiKey(false);
+        showNotification("API Key invalid or expired. Please sign in again.", "error");
+    }
+  }, [state.error]);
+
+  const handleSelectKey = async () => {
+      if (window.aistudio) {
+          try {
+              await window.aistudio.openSelectKey();
+              // Assume success as per mitigation strategy
+              setHasApiKey(true);
+          } catch (e) {
+              console.error("Key selection failed", e);
+              showNotification("Failed to select API key", "error");
+          }
+      }
+  };
+
   // Keep stateRef in sync for the interval
   useEffect(() => {
     stateRef.current = { inputText, cycles, heatTemp, coolTemp, ignitionState: state };
   }, [inputText, cycles, heatTemp, coolTemp, state]);
+
+  // Auto-detect language
+  useEffect(() => {
+    if (!state.isProcessing && inputText) {
+        const detected = detectLanguage(inputText);
+        if (detected !== language) {
+            setLanguage(detected);
+        }
+    }
+  }, [inputText, state.isProcessing, language]);
 
   // Initialize lastSavedStr on mount with default values
   useEffect(() => {
@@ -569,16 +636,21 @@ const App: React.FC = () => {
   const handleStart = useCallback(() => {
     if (!inputText.trim()) return;
     
+    // Auto-switch model based on complexity
+    const shouldUsePro = cycles > 3 || heatTemp > 1.2;
+    const activeModel = shouldUsePro ? "gemini-3-pro-preview" : "gemini-2.5-flash";
+
     dispatch({ 
         type: 'UPDATE_STATE', 
         payload: { 
             totalCycles: cycles,
             isProcessing: true,
-            error: undefined
+            error: undefined,
+            activeModel: activeModel
         } 
     });
 
-    alchemy.ignite(inputText, cycles, heatTemp, coolTemp, (update) => {
+    alchemy.ignite(inputText, cycles, heatTemp, coolTemp, activeModel, (update) => {
       dispatch({ type: 'UPDATE_STATE', payload: update });
     });
   }, [inputText, cycles, heatTemp, coolTemp]);
@@ -595,7 +667,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleReset = () => {
-    setInputText(DEFAULT_TEXT);
+    setInputText("");
     setHeatTemp(1.1);
     setCoolTemp(0.3);
     setCycles(2);
@@ -605,12 +677,16 @@ const App: React.FC = () => {
 
   const handleClear = () => {
     setInputText("");
-    setHeatTemp(1.1);
-    setCoolTemp(0.3);
-    setCycles(2);
-    dispatch({ type: 'RESET', payload: { totalCycles: 2 } });
+    // Keep settings, just clear text
+    dispatch({ type: 'UPDATE_STATE', payload: { sourceMaterial: "", currentState: "", history: [], phase: ProcessPhase.IDLE, error: undefined } });
     setEditorKey(prev => prev + 1);
   };
+
+  const handleLoadExample = (text: string, lang: Language) => {
+      setInputText(text);
+      setLanguage(lang); // Optimistic update, effect will confirm
+      setEditorKey(prev => prev + 1);
+  }
 
   const handleSaveSession = () => {
       try {
@@ -689,9 +765,10 @@ Generated: ${timestamp}
 - Cycles: ${cycles}
 - Entropy (Heat): ${heatTemp}
 - Stabilization (Cool): ${coolTemp}
+- Model: ${state.activeModel || "gemini-2.5-flash"}
 
 ## Source Anchor
-\`\`\`python
+\`\`\`${language}
 ${source}
 \`\`\`
 `;
@@ -701,12 +778,12 @@ ${source}
         state.history.forEach(cycle => {
             report += `\n### Cycle ${cycle.cycleNumber}
 #### Phase 1: Entropy (Heat)
-\`\`\`python
+\`\`\`${language}
 ${cycle.heatOutput}
 \`\`\`
 
 #### Phase 2: Stabilization (Cool)
-\`\`\`python
+\`\`\`${language}
 ${cycle.coolOutput}
 \`\`\`
 `;
@@ -714,7 +791,7 @@ ${cycle.coolOutput}
     }
 
     report += `\n## Final Evolution
-\`\`\`python
+\`\`\`${language}
 ${final}
 \`\`\`
 `;
@@ -734,7 +811,7 @@ ${final}
         console.error("Download failed", e);
         showNotification("Failed to download report", "error");
     }
-  }, [state, cycles, heatTemp, coolTemp, inputText]);
+  }, [state, cycles, heatTemp, coolTemp, inputText, language]);
 
   const handleShare = async () => {
     const session: SavedSession = {
@@ -802,6 +879,49 @@ ${final}
     }
   };
 
+  if (isCheckingAuth) {
+    return (
+        <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+            <Loader2 className="w-10 h-10 text-magma-500 animate-spin" />
+        </div>
+    );
+  }
+
+  if (!hasApiKey) {
+      return (
+          <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-4">
+              <div className="max-w-md w-full bg-slate-800/50 border border-slate-700 rounded-2xl p-8 text-center shadow-2xl backdrop-blur animate-in fade-in zoom-in-95 duration-300">
+                  <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-slate-700 shadow-inner ring-1 ring-slate-800">
+                      <Code2 className="w-8 h-8 text-magma-500" />
+                  </div>
+                  <h1 className="text-2xl font-bold text-white mb-2">Code Transmutation Engine</h1>
+                  <p className="text-slate-400 mb-8 leading-relaxed">
+                      Connect your Google account to provide an API key for the transmutation process.
+                  </p>
+                  
+                  <button 
+                      onClick={handleSelectKey}
+                      className="w-full bg-white hover:bg-slate-200 text-slate-900 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                      <div className="w-6 h-6 rounded-full border border-slate-300 flex items-center justify-center bg-white">
+                         <span className="font-bold text-xs">G</span>
+                      </div>
+                      Sign in with Google
+                  </button>
+                   <div className="mt-8 text-xs text-slate-500 flex items-center justify-center gap-4">
+                      <div className="flex items-center gap-1.5">
+                          <Lock className="w-3 h-3" />
+                          <span>Secure Connection</span>
+                      </div>
+                      <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noreferrer" className="hover:text-magma-500 underline decoration-slate-700 underline-offset-4 transition-colors">
+                          Billing Information
+                      </a>
+                  </div>
+              </div>
+          </div>
+      );
+  }
+
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-200 selection:bg-magma-500/30 selection:text-magma-100">
       
@@ -825,7 +945,14 @@ ${final}
                 <Code2 className="w-6 h-6 text-magma-500" />
             </div>
             <div>
-                <h1 className="text-xl font-bold tracking-tight text-white">Code Transmutation Engine</h1>
+                <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                    Code Transmutation Engine
+                    {state.activeModel && (
+                        <span className="text-[10px] uppercase tracking-wider bg-slate-800 border border-slate-700 text-slate-400 px-1.5 py-0.5 rounded font-mono">
+                            {state.activeModel}
+                        </span>
+                    )}
+                </h1>
                 <p className="text-xs text-slate-500 font-mono hidden sm:block">SOURCE_SPEC + ENTROPY({heatTemp}) + STABILIZATION({coolTemp}) = EVOLUTION</p>
             </div>
           </div>
@@ -885,8 +1012,15 @@ ${final}
             {/* Left: Input */}
             <div className="lg:col-span-2 space-y-4">
                 <label className="flex items-center justify-between text-sm font-semibold text-slate-400">
-                    <span>Source Code (Immutable Logic)</span>
+                    <span className="flex items-center gap-2">
+                        Source Code (Immutable Logic)
+                        <span className="text-[10px] bg-slate-800 text-slate-500 px-1.5 rounded uppercase">{language}</span>
+                    </span>
                     <div className="flex items-center gap-3">
+                         <ExamplesDropdown 
+                            onSelect={handleLoadExample} 
+                            disabled={state.isProcessing} 
+                         />
                         <button 
                           onClick={handleClear}
                           disabled={state.isProcessing}
@@ -909,6 +1043,7 @@ ${final}
                         value={inputText}
                         onChange={setInputText}
                         disabled={state.isProcessing}
+                        language={language}
                     />
                     {state.isProcessing && (
                         <div className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 bg-slate-900/90 backdrop-blur rounded-full border border-magma-500/30 text-xs font-mono text-magma-400 shadow-xl pointer-events-none z-40 animate-in fade-in duration-300">
@@ -1041,7 +1176,7 @@ ${final}
         )}
 
         {/* History Log */}
-        <HistoryLog history={state.history} />
+        <HistoryLog history={state.history} language={language} />
         
         {/* Info Footer */}
         <div className="mt-16 pt-8 border-t border-slate-800 text-center text-slate-600 text-sm flex items-center justify-center gap-2">

@@ -1,10 +1,12 @@
 import React, { useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import { ChevronDown, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
+import { Language } from '../types';
 
 interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
   disabled?: boolean;
+  language?: Language | string;
 }
 
 // Helper to detect indentation-based regions (Python style)
@@ -40,7 +42,7 @@ const detectRegions = (code: string) => {
   return validRegions;
 };
 
-export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disabled }) => {
+export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disabled, language = 'python' }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
   const linesRef = useRef<HTMLDivElement>(null);
@@ -181,8 +183,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disable
 
   const getHighlightedCode = (code: string) => {
     const codeToHighlight = code.endsWith('\n') ? code + ' ' : code;
-    if (typeof window !== 'undefined' && (window as any).Prism && (window as any).Prism.languages.python) {
-       return (window as any).Prism.highlight(codeToHighlight, (window as any).Prism.languages.python, 'python');
+    // @ts-ignore
+    if (typeof window !== 'undefined' && window.Prism && window.Prism.languages[language]) {
+        // @ts-ignore
+       return window.Prism.highlight(codeToHighlight, window.Prism.languages[language], language);
     }
     return codeToHighlight.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   };
