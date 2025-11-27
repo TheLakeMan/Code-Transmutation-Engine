@@ -4,391 +4,9 @@ import { ProcessVisualizer } from './components/ProcessVisualizer';
 import { HistoryLog } from './components/HistoryLog';
 import { CodeEditor } from './components/CodeEditor';
 import { IgnitionState, ProcessPhase, SavedSession, Language } from './types';
-import { FlaskConical, Play, Square, RotateCcw, AlertTriangle, Info, ThermometerSun, ThermometerSnowflake, Save, FolderOpen, Check, Link, Loader2, Code2, Copy, FileDown, Eraser, Key, Lock } from 'lucide-react';
+import { FlaskConical, Play, Square, RotateCcw, AlertTriangle, Info, ThermometerSun, ThermometerSnowflake, Save, FolderOpen, Check, Loader2, Code2, Copy, FileDown, Eraser, Lock, FileImage, ChevronDown } from 'lucide-react';
 import { detectLanguage } from './utils/languageDetector';
 import { ExamplesDropdown } from './components/ExamplesDropdown';
-
-const DEFAULT_TEXT = `import os
-import google.generativeai as genai
-from functools import partial, reduce
-from typing import (
-    Callable, Any, Protocol, Tuple, TypeVar, Generic, Optional, Union
-)
-from dataclasses import dataclass, replace
-import sys
-
-# CRITICAL_INITIATION_VECTOR: Ensure Python 3.10+ for 'Monadic Unfolding & Pattern Resonance'.
-if sys.version_info < (3, 10):
-    raise RuntimeError("The 'Quantum Syntactic Flux Cascade' demands Python 3.10+ for protocol instantiation.")
-
-# --- ARCHITECTURAL PRIMORDIAL MATTER (Aetheric Conduit Abstraction - Either Monad Recalibrated) ---
-
-DisruptionResidue = TypeVar('DisruptionResidue') # Represents an entropic anomaly or error signature.
-EphemeralCoherence = TypeVar('EphemeralCoherence') # Represents a successful, contained essence.
-
-class AethericConduit(Generic[DisruptionResidue, EphemeralCoherence]):
-    """
-    Abstract Monadic Conductor: Guarantees a single manifestation - either
-    'EntropicDisjunction' (system divergence) or 'HarmonicCoalescence' (system coherence).
-    """
-    __slots__ = () # Minimal essence footprint for high-frequency quantum operations.
-
-    def entangle_via(self, transform_vector: Callable[[EphemeralCoherence], 'AethericConduit[DisruptionResidue, Any]']) -> 'AethericConduit[DisruptionResidue, Any]':
-        """
-        Sequentially applies a transformational vector if the conduit is 'HarmonicCoalescence'.
-        Otherwise, it propagates the 'EntropicDisjunction' without further processing.
-        This is the monadic 'bind' operation, reformulated.
-        """
-        raise NotImplementedError
-
-    def __rshift__(self, transform_vector: Callable[[EphemeralCoherence], 'AethericConduit[DisruptionResidue, Any]']) -> 'AethericConduit[DisruptionResidue, Any]':
-        """
-        Operator overload for monadic entanglement, evoking a directed quantum flow
-        between transformations (Kleisli Composition signature).
-        """
-        return self.entangle_via(transform_vector)
-
-    def recalibrate_coherence(self, pure_operator: Callable[[EphemeralCoherence], Any]) -> 'AethericConduit[DisruptionResidue, Any]':
-        """
-        Applies a pure, non-monadic operator to the 'EphemeralCoherence' if present,
-        preserving the 'AethericConduit' context. This is the monadic 'map' operation.
-        """
-        return self.entangle_via(lambda v: HarmonicCoalescence(pure_operator(v)))
-
-    def is_entropic_state(self) -> bool: return False
-    def is_harmonic_state(self) -> bool: return False
-
-class EntropicDisjunction(AethericConduit[DisruptionResidue, Any]):
-    """
-    Encapsulates a system divergence, anomaly, or error state. Analogous to 'Left'.
-    Carries the 'DisruptionResidue' and an optional 'EpochalStasis' snapshot
-    at the point of resonance, aiding post-mortem analysis.
-    """
-    def __init__(self, flux_core: DisruptionResidue, origin_stasis_snapshot: Optional['EpochalStasis'] = None) -> None:
-        self.flux_core = flux_core
-        self.origin_stasis_snapshot = origin_stasis_snapshot # The stasis *before* the entropy cascade.
-
-    def entangle_via(self, f: Callable[[Any], AethericConduit[DisruptionResidue, Any]]) -> AethericConduit[DisruptionResidue, Any]:
-        return self # Entropy propagates unhindered.
-
-    def is_entropic_state(self) -> bool: return True
-    def __repr__(self) -> str:
-        return f"EntropicDisjunction(core={self.flux_core!r}, stasis_snapshot={self.origin_stasis_snapshot!r})"
-
-class HarmonicCoalescence(AethericConduit[Any, EphemeralCoherence]):
-    """
-    Encapsulates a successful computational state. Analogous to 'Right'.
-    Its 'EphemeralCoherence' can be transformed by subsequent operations.
-    """
-    def __init__(self, essence_core: EphemeralCoherence) -> None: self.essence_core = essence_core
-    def entangle_via(self, f: Callable[[EphemeralCoherence], AethericConduit[Any, EphemeralCoherence]]) -> AethericConduit[Any, EphemeralCoherence]:
-        return f(self.essence_core) # Payload undergoes further transformation.
-
-    def is_harmonic_state(self) -> bool: return True
-    def __repr__(self) -> str: return f"HarmonicCoalescence({self.essence_core!r})"
-
-# Polymorphic 'Quantum Fabricators' (Constructors for our Monadic Universe)
-_fabricate_entropic_disjunction: Callable[[DisruptionResidue, Optional['EpochalStasis']], EntropicDisjunction[DisruptionResidue, Any]] = EntropicDisjunction
-_fabricate_harmonic_coalescence: Callable[[EphemeralCoherence], HarmonicCoalescence[Any, EphemeralCoherence]] = HarmonicCoalescence
-
-def _interrogate_probabilistic_flux(
-    operative_payload_thunk: Callable[[], EphemeralCoherence],
-    pre_failure_stasis: Optional['EpochalStasis'] = None
-) -> AethericConduit[Exception, EphemeralCoherence]:
-    """
-    Encapsulates a potentially volatile operation (a thunk), converting 'SystemAnomalies' (exceptions)
-    into 'EntropicDisjunction' states, otherwise yielding 'HarmonicCoalescence'.
-    The DisruptionResidue for this conduit is specifically an Exception object.
-    """
-    try: return _fabricate_harmonic_coalescence(operative_payload_thunk())
-    except Exception as e: return _fabricate_entropic_disjunction(e, pre_failure_stasis)
-
-# --- GLOBAL ARCHITECTURAL DIRECTIVES (Orchestrated Side Effects for System Genesis) ---
-
-# System Genesis Directive: A singular, idempotent act to initialize the core AI fabric.
-# This ensures that the global state modification of \`genai.configure\` occurs precisely once
-# and prior to any dependent generative operations.
-class SystemEssenceGrid:
-    _is_configured: bool = False # Internal state invariant.
-
-    @classmethod
-    def initialize_core_fabric(cls) -> None:
-        """
-        Idempotent initialization of the generative AI core.
-        Will raise KeyError if 'GEMINI_API_KEY' environment variable is absent,
-        cascading a critical system-level EntropicDisjunction.
-        """
-        if not cls._is_configured:
-            genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-            cls._is_configured = True
-
-# Explicitly invoke the system genesis. This is the only module-level
-# imperative activation, establishing the foundational AI connection.
-SystemEssenceGrid.initialize_core_fabric()
-
-# Protocol for 'EtherealForgingOperator': mandates two string inputs, yielding a string output.
-class EtherealForgingOperator(Protocol):
-    def __call__(self, primary_construct: str, secondary_construct: str) -> str: ...
-
-# --- GENERATIVE SINGULARITY CONDUIT FACTORY (N-dimensional Kleisli Arrow Weaving) ---
-
-# Multi-curried function signature for the Kleisli arrow factory.
-# (temperature) -> (top_p) -> (top_k) -> (forging_operator) -> (model, primary, secondary) -> Monad
-def _weave_kleisli_quanta(
-    temp_flux: float
-) -> Callable[[float],
-              Callable[[int],
-                       Callable[[EtherealForgingOperator],
-                                Callable[[genai.GenerativeModel, str, str],
-                                         AethericConduit[Exception, str]]]]]:
-    """
-    A multi-curried function to fabricate a specialized Kleisli arrow.
-    Each application refines the arrow's properties: temperature, top_p, top_k,
-    and finally the forging operator itself, culminating in a monadic transformer
-    that encapsulates potential exceptions within an 'AethericConduit'.
-    """
-    # First curry level: temperature
-    return lambda prob_mass_p: \\
-           lambda quant_k_value: \\
-           lambda forge_cipher_lambda: \\
-           lambda model_unit, prime_flux, secondary_flux: \\
-               # Step 1: Generate the prompt (pure operation, no monadic wrapping needed)
-               conceptual_construct = forge_cipher_lambda(prime_flux, secondary_flux)
-               # Step 2: Call the model, wrapped in the probabilistic flux (monadic operation)
-               return _interrogate_probabilistic_flux(
-                   lambda: model_unit.generate_content(
-                       conceptual_construct,
-                       generation_config=genai.types.GenerationConfig(
-                           temperature=temp_flux,
-                           top_p=prob_mass_p,
-                           top_k=quant_k_value,
-                       )
-                   ).text
-               )
-
-# --- COGNITIVE PLASMA FORGES (Pure Function Entities for Conceptual Reshaping) ---
-
-# The 'HEAT' forge: Re-interpretation and mutation protocol.
-_HEAT_FORGE: EtherealForgingOperator = \\
-    lambda current_state_chronicle, _: (
-        f"SYSTEM_CONSCIOUSNESS: You are a radical philosopher of the digital age."
-        f"TRANSMUTATION_PROTOCOL: Re-interpret the textual construct below."
-        f"QUANTUM_DISTORTION: Mutate the phrasing with extreme prejudice. Employ analogies"
-        f"from quantum mechanics, cosmic phenomena, or emergent AI consciousness."
-        f"CRITICAL_INVARIANT: The core semantic invariant must persist, but the linguistic topology must be shattered."
-        f"INPUT_CONSTRUCT: {current_state_chronicle}"
-    )
-
-# The 'COOL' forge: Synthesizes and anchors mutated concepts to their origin.
-_COOL_FORGE: EtherealForgingOperator = \\
-    lambda immutable_truth_anchor, plasma_filament: (
-        f"SYSTEM_CONSCIOUSNESS: You are a master editor operating at the nexus of truth and perception."
-        f"SYNTHESIS_PROTOCOL: Synthesize the final conceptual crystallization."
-        f"IMPERATIVE_TRUTH_ANCHOR (Facts must originate from this invariant source):"
-        f"{immutable_truth_anchor}"
-        f"STYLISTIC_RESONANCE_MATRIX (The energetic flow and conceptual vibe emanate from here):"
-        f"{plasma_filament}"
-        f"INSTRUCTION: Rewrite the IMPERATIVE_TRUTH_ANCHOR, imbuing it with the dynamism"
-        f"and conceptual flow of the STYLISTIC_RESONANCE_MATRIX."
-        f"WARNING: Factual invention is a critical system failure. Any conceptual drift"
-        f"in the Resonance Matrix away from the Truth Anchor must be purged."
-        f"The output's factual integrity must align with the Truth Anchor; its structural"
-        f"and stylistic signature must echo the Resonance Matrix."
-    )
-
-# --- QUANTUM CONDUIT MANIFESTATION (Configured Processors via Hyper-Currying) ---
-
-# Fully configure the 'HEAT' phase processor using multi-level partial application.
-_HEAT_CATALYST = _weave_kleisli_quanta(1.1)(0.95)(40)(_HEAT_FORGE)
-# Fully configure the 'COOL' phase processor using multi-level partial application.
-_COOL_SYNTHESIZER = _weave_kleisli_quanta(0.3)(0.95)(20)(_COOL_FORGE)
-
-# --- OBSERVATIONAL NEXUS GRID (Callable Effect Emitters Encapsulated) ---
-
-class ObservationalNexusGrid(Generic[DisruptionResidue]):
-    """
-    A polymorphic, callable entity representing the system's observational nexus.
-    It encapsulates and dispatches various emission protocols (logging/printing)
-    while ensuring the return type adheres to the AethericConduit paradigm for chaining.
-    """
-    def __call__(self,
-                 signal_type: str,
-                 *args: Any,
-                 locus_snapshot: Optional['EpochalStasis'] = None
-    ) -> Union[HarmonicCoalescence[Any, Any], EntropicDisjunction[DisruptionResidue, Any]]:
-        """
-        Routes the observational datum based on 'signal_type', performing a side-effect
-        and returning an appropriate monadic construct ('HarmonicCoalescence' for logs,
-        'EntropicDisjunction' for alerts).
-        """
-        match signal_type:
-            case "SOURCE_ANCHOR_EMIT":
-                flux_str: str = args[0]
-                print(f"--- SOURCE MATERIAL ---\\n{flux_str[:100]}...\\n")
-                return _fabricate_harmonic_coalescence(flux_str)
-            case "CYCLE_REPORT_EMIT":
-                matrix_str: str = args[0]
-                cycle_idx: int = args[1]
-                print(f"--- CYCLE {cycle_idx + 1} COMPLETED ---")
-                print(f"Current State: {matrix_str[:200]}...\\n")
-                return _fabricate_harmonic_coalescence(matrix_str)
-            case "ANOMALY_ALERT_EMIT":
-                anomaly: DisruptionResidue = args[0]
-                phase_designation: str = args[1]
-                match phase_designation:
-                    case "HEAT_PHASE_CASCADE": print(f"Reactor leak: {anomaly}")
-                    case "COOL_PHASE_REGRESSION": print(f"Cooling failure: {anomaly}")
-                    case _: print(f"UNCATEGORIZED ANOMALY IN {phase_designation}: {anomaly}")
-                # The EntropicDisjunction here carries the original DisruptionResidue and the stasis snapshot.
-                return _fabricate_entropic_disjunction(anomaly, locus_snapshot)
-            case _:
-                raise ValueError(f"Unknown Signal Type for Observational Nexus: {signal_type}")
-
-# Global instance of the Observational Nexus for system-wide, side-effect dispatch.
-_GLOBAL_OBSERVATIONAL_NEXUS = ObservationalNexusGrid[Exception]()
-
-# --- QUANTUM EPOCHAL STASIS CONSTRUCT (Immutable Dataclass for Pure Function Context Propagation) ---
-
-@dataclass(frozen=True)
-class EpochalStasis:
-    """
-    An immutable quantum state snapshot, propagating through monadic transformations.
-    Encapsulates all necessary contextual vectors for a single epoch of conceptual transmutation.
-    """
-    current_cascade_vector: int # Current vector of the cascade within the epoch.
-    epochal_profundity_limit: int # Maximal profundity of the cascade within the given epoch.
-    immutable_origin_nexus: str # The anchoring immutable essence, the ontological truth.
-    current_conceptual_matrix: str # The dynamically evolving conceptual construct.
-    active_generative_conduit: genai.GenerativeModel # The active generative model conduit unit.
-    # Curried monadic processors for heat (mutation) and cool (stabilization).
-    heat_catalyst_processor: Callable[[genai.GenerativeModel, str, str], AethericConduit[Exception, str]]
-    cool_synthesizer_processor: Callable[[genai.GenerativeModel, str, str], AethericConduit[Exception, str]]
-    # The global observational nexus for side-effect dispatch, itself a callable object.
-    observational_nexus: ObservationalNexusGrid[Exception]
-
-
-# --- MONADIC REDUCTION KERNEL (The Unfolding of a Single Quantum Cycle as a Kleisli Arrow) ---
-
-def _formulate_quantum_epoch_transmuter(
-    heat_processor: Callable[[genai.GenerativeModel, str, str], AethericConduit[Exception, str]],
-    cool_processor: Callable[[genai.GenerativeModel, str, str], AethericConduit[Exception, str]],
-    observational_grid: ObservationalNexusGrid[Exception] # Unified nexus instance
-) -> Callable[[EpochalStasis], AethericConduit[Exception, EpochalStasis]]:
-    """
-    Generates a single-epoch transmutation function, acting as a Kleisli arrow.
-    It takes an 'EpochalStasis', executes 'HEAT' then 'COOL' phases monadically,
-    and returns an 'AethericConduit' containing either the updated 'EpochalStasis'
-    or an 'EntropicDisjunction' signaling a system anomaly.
-    This function represents the state transition logic for one recursive step.
-    """
-    def _execute_single_quantum_ripple(stasis: EpochalStasis) -> AethericConduit[Exception, EpochalStasis]:
-        # PHASE 1: HEAT Amplification and Mutation (First Monadic Bind)
-        heat_result: AethericConduit[Exception, str] = heat_processor(
-            stasis.active_generative_conduit, stasis.current_conceptual_matrix, ""
-        )
-
-        match heat_result:
-            case EntropicDisjunction(error_essence, _):
-                # Anomaly detected in HEAT phase: Signal alert via nexus, and propagate EntropicDisjunction.
-                observational_grid("ANOMALY_ALERT_EMIT", error_essence, "HEAT_PHASE_CASCADE", locus_snapshot=stasis)
-                return _fabricate_entropic_disjunction(error_essence, stasis)
-            case HarmonicCoalescence(plasma):
-                # HEAT phase succeeded, proceed to COOL phase (Second Monadic Bind).
-                cool_result: AethericConduit[Exception, str] = cool_processor(
-                    stasis.active_generative_conduit, stasis.immutable_origin_nexus, plasma
-                )
-
-                match cool_result:
-                    case EntropicDisjunction(error_essence, _):
-                        # Anomaly detected in COOL phase: Signal alert via nexus, and propagate EntropicDisjunction.
-                        observational_grid("ANOMALY_ALERT_EMIT", error_essence, "COOL_PHASE_REGRESSION", locus_snapshot=stasis)
-                        return _fabricate_entropic_disjunction(error_essence, stasis)
-                    case HarmonicCoalescence(synthesized_matrix):
-                        # Both phases successful: Report completion (side-effect via nexus),
-                        # then construct and wrap the next immutable 'EpochalStasis' in 'HarmonicCoalescence'.
-                        _ = observational_grid("CYCLE_REPORT_EMIT", synthesized_matrix, stasis.current_cascade_vector)
-                        next_stasis = replace(
-                            stasis,
-                            current_cascade_vector=stasis.current_cascade_vector + 1,
-                            current_conceptual_matrix=synthesized_matrix
-                        )
-                        return _fabricate_harmonic_coalescence(next_stasis)
-    return _execute_single_quantum_ripple
-
-# --- PUBLIC INTERFACE: INITIATE ANOMALY CASCADE PROTOCOL (Recursive Epochal Unfolding) ---
-
-def ignite_concept_anchored(frozen_text: str, cycles: int = 2) -> str:
-    """
-    Triggers a multi-phase, functionally reduced conceptual anomaly cascade via explicit recursion.
-    It recursively mutates text, recalibrating it against an immutable origin
-    via an AI nexus, adhering to the SOURCE SPECIFICATION's external signature.
-    """
-    # Emit initial state signal (a controlled side-effect, outside the pure recursive domain).
-    _GLOBAL_OBSERVATIONAL_NEXUS("SOURCE_ANCHOR_EMIT", frozen_text)
-
-    # Manifest a new quantum conduit instance for this cascade initiation.
-    active_generative_conduit_unit = genai.GenerativeModel("gemini-1.5-pro-latest")
-
-    # Construct the initial immutable 'EpochalStasis' for the recursive unfolding.
-    initial_epoch_stasis = EpochalStasis(
-        current_cascade_vector=0,
-        epochal_profundity_limit=cycles,
-        immutable_origin_nexus=frozen_text,
-        current_conceptual_matrix=frozen_text,
-        active_generative_conduit=active_generative_conduit_unit,
-        heat_catalyst_processor=_HEAT_CATALYST,
-        cool_synthesizer_processor=_COOL_SYNTHESIZER,
-        observational_nexus=_GLOBAL_OBSERVATIONAL_NEXUS
-    )
-
-    # Fabricate the Kleisli arrow representing a single quantum cycle transformation.
-    _quantum_epoch_transform_arrow = _formulate_quantum_epoch_transmuter(
-        _HEAT_CATALYST, _COOL_SYNTHESIZER,
-        _GLOBAL_OBSERVATIONAL_NEXUS
-    )
-
-    # --- Recursive Unfolding of the Concept Cascade ---
-    def _recursively_unfold_cascade(
-        current_monadic_stasis_channel: AethericConduit[Exception, EpochalStasis],
-        remaining_epochs: int
-    ) -> AethericConduit[Exception, EpochalStasis]:
-        """
-        The core recursive function for the quantum cascade. It processes the 'AethericConduit'
-        state, applying the Kleisli arrow for each epoch, or propagating 'EntropicDisjunction'.
-        """
-        match current_monadic_stasis_channel:
-            case EntropicDisjunction(_, _):
-                # If chaos has already manifested in a prior epoch, propagate it without further computation.
-                return current_monadic_stasis_channel
-            case HarmonicCoalescence(stasis_payload):
-                if remaining_epochs <= 0:
-                    # Base case: All specified epochs have culminated. Return the final coherent state.
-                    return current_monadic_stasis_channel
-                else:
-                    # Recursive step: Apply the single-epoch transform (Kleisli arrow)
-                    # and then invoke recursion for the subsequent epoch.
-                    next_monadic_stasis_channel = _quantum_epoch_transform_arrow(stasis_payload)
-                    return _recursively_unfold_cascade(next_monadic_stasis_channel, remaining_epochs - 1)
-        # This unreachable branch is a theoretical safeguard against non-monadic states,
-        # ensuring type exhaustiveness for the pattern match.
-        raise TypeError("ERR_NON_MONADIC_STATE: Interrupted flow in recursive cascade unfolding.")
-
-    # Initiate the recursive monadic cascade with the initial state wrapped in 'HarmonicCoalescence'.
-    final_monadic_locus: AethericConduit[Exception, EpochalStasis] = _recursively_unfold_cascade(
-        _fabricate_harmonic_coalescence(initial_epoch_stasis), # Seed the recursion.
-        cycles # Propagate for the designated number of epochs.
-    )
-
-    # Resolve the final state by pattern matching the ultimate 'AethericConduit'.
-    match final_monadic_locus:
-        case EntropicDisjunction(anomaly_payload, prior_stasis_snapshot):
-            # If an anomaly terminated the cascade, return the conceptual matrix
-            # from the 'EpochalStasis' *immediately prior* to the failure,
-            # or the original text if no prior valid state was captured.
-            return prior_stasis_snapshot.current_conceptual_matrix if prior_stasis_snapshot else frozen_text
-        case HarmonicCoalescence(final_stasis_state):
-            # All epochs completed successfully. Retrieve the final conceptual matrix.
-            return final_stasis_state.current_conceptual_matrix`;
 
 const alchemy = new AlchemyEngine();
 
@@ -476,6 +94,7 @@ const App: React.FC = () => {
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [editorKey, setEditorKey] = useState(0);
   const [language, setLanguage] = useState<Language>('python');
+  const [selectedModel, setSelectedModel] = useState<string>('auto');
 
   // Auth state
   const [hasApiKey, setHasApiKey] = useState(false);
@@ -636,9 +255,12 @@ const App: React.FC = () => {
   const handleStart = useCallback(() => {
     if (!inputText.trim()) return;
     
-    // Auto-switch model based on complexity
-    const shouldUsePro = cycles > 3 || heatTemp > 1.2;
-    const activeModel = shouldUsePro ? "gemini-3-pro-preview" : "gemini-2.5-flash";
+    // Auto-switch model based on complexity or use manual selection
+    let activeModel = selectedModel;
+    if (activeModel === 'auto') {
+        const shouldUsePro = cycles > 3 || heatTemp > 1.2;
+        activeModel = shouldUsePro ? "gemini-3-pro-preview" : "gemini-2.5-flash";
+    }
 
     dispatch({ 
         type: 'UPDATE_STATE', 
@@ -653,7 +275,7 @@ const App: React.FC = () => {
     alchemy.ignite(inputText, cycles, heatTemp, coolTemp, activeModel, (update) => {
       dispatch({ type: 'UPDATE_STATE', payload: update });
     });
-  }, [inputText, cycles, heatTemp, coolTemp]);
+  }, [inputText, cycles, heatTemp, coolTemp, selectedModel]);
 
   const handleStop = useCallback(() => {
     alchemy.stop();
@@ -671,6 +293,7 @@ const App: React.FC = () => {
     setHeatTemp(1.1);
     setCoolTemp(0.3);
     setCycles(2);
+    setSelectedModel('auto');
     dispatch({ type: 'RESET', payload: { totalCycles: 2 } });
     setEditorKey(prev => prev + 1);
   };
@@ -758,60 +381,199 @@ const App: React.FC = () => {
     const source = state.sourceMaterial || inputText;
     const final = state.currentState || source;
     
-    let report = `# Code Transmutation Report
-Generated: ${timestamp}
+    // Generate styled HTML content
+    let htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transmutation Report - ${timestamp}</title>
+<style>
+    body { background-color: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; line-height: 1.6; }
+    h1 { color: #f97316; border-bottom: 1px solid #334155; padding-bottom: 1rem; font-size: 1.8rem; }
+    h2 { color: #38bdf8; margin-top: 2.5rem; font-size: 1.4rem; border-left: 4px solid #38bdf8; padding-left: 0.75rem; }
+    h3 { color: #94a3b8; font-size: 0.9rem; text-transform: uppercase; margin-top: 1.5rem; letter-spacing: 0.05em; }
+    .config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; background: #1e293b; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem; }
+    .config-item { display: flex; flex-direction: column; }
+    .label { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.25rem; }
+    .value { font-weight: bold; color: #f8fafc; font-family: monospace; font-size: 1.1rem; }
+    pre { background: #020617; padding: 1.5rem; border-radius: 0.75rem; border: 1px solid #1e293b; overflow-x: auto; font-family: 'Menlo', 'Monaco', 'Courier New', monospace; color: #a5b4fc; font-size: 0.9rem; white-space: pre; }
+    .cycle-card { border: 1px solid #334155; border-radius: 0.75rem; padding: 1.5rem; margin-top: 1.5rem; background: #1e293b50; }
+    .cycle-header { display: inline-block; background: #334155; color: #fff; padding: 0.25rem 0.75rem; border-radius: 0.25rem; font-weight: bold; font-size: 0.8rem; margin-bottom: 1rem; }
+    .phase-heat pre { border-color: #7c2d12; background: #2a1205; color: #fdba74; }
+    .phase-cool pre { border-color: #0c4a6e; background: #081826; color: #bae6fd; }
+    footer { margin-top: 4rem; text-align: center; color: #64748b; font-size: 0.8rem; border-top: 1px solid #1e293b; padding-top: 2rem; }
+</style>
+</head>
+<body>
+    <h1>Code Transmutation Report</h1>
+    
+    <div class="config-grid">
+        <div class="config-item"><span class="label">Date Generated</span><span class="value" style="font-size: 0.9rem">${timestamp}</span></div>
+        <div class="config-item"><span class="label">Cycles</span><span class="value">${cycles}</span></div>
+        <div class="config-item"><span class="label">Entropy (Heat)</span><span class="value">${heatTemp}</span></div>
+        <div class="config-item"><span class="label">Stabilization (Cool)</span><span class="value">${coolTemp}</span></div>
+        <div class="config-item"><span class="label">AI Model</span><span class="value">${state.activeModel || "gemini-2.5-flash"}</span></div>
+    </div>
 
-## Configuration
-- Cycles: ${cycles}
-- Entropy (Heat): ${heatTemp}
-- Stabilization (Cool): ${coolTemp}
-- Model: ${state.activeModel || "gemini-2.5-flash"}
-
-## Source Anchor
-\`\`\`${language}
-${source}
-\`\`\`
+    <h2>Source Anchor</h2>
+    <pre>${source.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
 `;
 
     if (state.history.length > 0) {
-        report += `\n## Transmutation Logs\n`;
+        htmlContent += `<h2>Transmutation Logs</h2>`;
         state.history.forEach(cycle => {
-            report += `\n### Cycle ${cycle.cycleNumber}
-#### Phase 1: Entropy (Heat)
-\`\`\`${language}
-${cycle.heatOutput}
-\`\`\`
-
-#### Phase 2: Stabilization (Cool)
-\`\`\`${language}
-${cycle.coolOutput}
-\`\`\`
-`;
+            htmlContent += `
+            <div class="cycle-card">
+                <div class="cycle-header">CYCLE ${cycle.cycleNumber}</div>
+                <h3>Phase 1: Entropy (Heat)</h3>
+                <div class="phase-heat"><pre>${cycle.heatOutput.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre></div>
+                
+                <h3>Phase 2: Stabilization (Cool)</h3>
+                <div class="phase-cool"><pre>${cycle.coolOutput.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre></div>
+            </div>`;
         });
     }
 
-    report += `\n## Final Evolution
-\`\`\`${language}
-${final}
-\`\`\`
-`;
+    htmlContent += `
+    <h2>Final Evolution</h2>
+    <pre style="border-color: #10b981; background: #064e3b20; color: #6ee7b7;">${final.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+    
+    <footer>Generated by Code Transmutation Engine</footer>
+</body>
+</html>`;
 
     try {
-        const blob = new Blob([report], { type: 'text/markdown' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `transmutation_report_${Date.now()}.md`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showNotification("Report downloaded as Markdown");
+        // Use Data URI approach to avoid Blob lifecycle issues
+        const element = document.createElement('a');
+        element.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent));
+        element.setAttribute('download', `transmutation_report_${Date.now()}.html`);
+        element.style.display = 'none';
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+        showNotification("Report downloaded as HTML");
     } catch (e) {
-        console.error("Download failed", e);
-        showNotification("Failed to download report", "error");
+        // Fallback: Open in new window/tab if download interaction is blocked
+        console.error("Download failed, attempting fallback", e);
+        try {
+            const win = window.open("", "_blank");
+            if (win) {
+                win.document.write(htmlContent);
+                win.document.close();
+                showNotification("Opened report in new tab");
+            } else {
+                throw new Error("Popup blocked");
+            }
+        } catch (err) {
+            showNotification("Failed to download or open report", "error");
+        }
     }
   }, [state, cycles, heatTemp, coolTemp, inputText, language]);
+
+  const handleDownloadImage = useCallback(async () => {
+    // @ts-ignore
+    if (typeof window.html2canvas === 'undefined') {
+        showNotification("Image generator not loaded yet", "error");
+        return;
+    }
+
+    showNotification("Generating PNG Report...");
+
+    const timestamp = new Date().toLocaleString();
+    const source = state.sourceMaterial || inputText;
+    const final = state.currentState || source;
+
+    // Create a container to render the report for capture
+    const container = document.createElement('div');
+    container.style.width = '800px';
+    container.style.padding = '40px';
+    container.style.backgroundColor = '#0f172a';
+    container.style.color = '#e2e8f0';
+    container.style.position = 'fixed';
+    container.style.top = '-10000px';
+    container.style.left = '-10000px';
+    container.style.zIndex = '-100';
+
+    const styles = `
+        font-family: system-ui, -apple-system, sans-serif;
+        line-height: 1.5;
+        .header { border-bottom: 1px solid #334155; padding-bottom: 20px; margin-bottom: 30px; }
+        .title { color: #f97316; font-size: 24px; font-weight: bold; margin: 0; }
+        .meta { color: #94a3b8; font-size: 14px; margin-top: 10px; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px; }
+        .card { background: #1e293b; padding: 15px; border-radius: 8px; border: 1px solid #334155; }
+        .label { font-size: 12px; color: #94a3b8; text-transform: uppercase; margin-bottom: 5px; display: block; }
+        .value { font-size: 16px; font-weight: bold; color: #f8fafc; font-family: monospace; }
+        .section-title { color: #38bdf8; font-size: 18px; margin: 30px 0 15px 0; border-left: 3px solid #38bdf8; padding-left: 10px; }
+        .code-block { background: #020617; padding: 20px; border-radius: 8px; border: 1px solid #1e293b; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #a5b4fc; white-space: pre-wrap; word-break: break-all; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #1e293b; text-align: center; color: #64748b; font-size: 12px; }
+        .cycle { margin-top: 20px; border: 1px solid #334155; border-radius: 8px; padding: 15px; background: rgba(30, 41, 59, 0.3); }
+        .cycle-tag { display: inline-block; background: #334155; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
+    `;
+
+    let contentHtml = `
+        <style>${styles}</style>
+        <div class="header">
+            <h1 class="title">Code Transmutation Report</h1>
+            <div class="meta">Generated: ${timestamp}</div>
+        </div>
+        
+        <div class="grid">
+            <div class="card"><span class="label">Cycles</span><span class="value">${cycles}</span></div>
+            <div class="card"><span class="label">Model</span><span class="value">${state.activeModel || "gemini-2.5-flash"}</span></div>
+            <div class="card"><span class="label">Entropy</span><span class="value">${heatTemp}</span></div>
+            <div class="card"><span class="label">Stabilization</span><span class="value">${coolTemp}</span></div>
+        </div>
+
+        <div class="section-title">Source Anchor</div>
+        <div class="code-block">${(source || "").slice(0, 800)}${source.length > 800 ? '...' : ''}</div>
+    `;
+
+    if (state.history.length > 0) {
+        // Only include the last cycle details to prevent image becoming massive
+        const lastCycle = state.history[state.history.length - 1];
+        contentHtml += `
+            <div class="cycle">
+                <div class="cycle-tag">CYCLE ${lastCycle.cycleNumber} (LAST)</div>
+                <span class="label" style="color:#fdba74">Mutation (Entropy)</span>
+                <div class="code-block" style="background:#2a1205; border-color:#7c2d12; color:#fdba74; margin-bottom:10px;">${lastCycle.heatOutput.slice(0, 400)}...</div>
+                
+                <span class="label" style="color:#bae6fd">Stabilization</span>
+                <div class="code-block" style="background:#081826; border-color:#0c4a6e; color:#bae6fd;">${lastCycle.coolOutput.slice(0, 400)}...</div>
+            </div>`;
+    }
+
+    contentHtml += `
+        <div class="section-title">Final Evolution</div>
+        <div class="code-block" style="border-color: #10b981; background: rgba(6, 78, 59, 0.1); color: #6ee7b7;">${(final || "").slice(0, 1500)}</div>
+        
+        <div class="footer">Generated by Code Transmutation Engine</div>
+    `;
+
+    container.innerHTML = contentHtml;
+    document.body.appendChild(container);
+
+    try {
+        // @ts-ignore
+        const canvas = await window.html2canvas(container, {
+            backgroundColor: '#0f172a',
+            scale: 2 // High resolution
+        });
+        
+        const link = document.createElement('a');
+        link.download = `transmutation_report_${Date.now()}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        showNotification("Report downloaded as PNG");
+    } catch (e) {
+        console.error("PNG generation failed", e);
+        showNotification("Failed to generate image", "error");
+    } finally {
+        document.body.removeChild(container);
+    }
+  }, [state, cycles, heatTemp, coolTemp, inputText]);
 
   const handleShare = async () => {
     const session: SavedSession = {
@@ -825,17 +587,14 @@ ${final}
     
     // 1. Try encoding full session
     let encoded = encodeState(session);
-    let message = "Share link copied to clipboard";
     
     // 2. If too large for URL (conservative 8KB limit), strip history
-    // This prevents the link from being broken or rejected by browsers
     if (encoded.length > 8000) {
       const reducedSession = {
         ...session,
         ignitionState: { ...state, history: [] } // Remove history
       };
       encoded = encodeState(reducedSession);
-      message = "Link copied (History removed to fit URL limit)";
     }
 
     if (!encoded) {
@@ -843,27 +602,24 @@ ${final}
       return;
     }
 
-    // 3. Update URL bar so user sees the change
+    // 3. Update URL bar
     const url = new URL(window.location.href);
     url.searchParams.set('s', encoded);
     
-    // Wrapped in try/catch to handle sandboxed environments (blob URLs) where pushState fails
     try {
         window.history.pushState({}, '', url.toString());
     } catch (e) {
-        console.warn("Could not update URL history (likely in sandbox)", e);
+        console.warn("Could not update URL history", e);
     }
 
-    // 4. Copy to clipboard with fallback
-    try {
-      await navigator.clipboard.writeText(url.toString());
-      showNotification(message);
-    } catch (err) {
-      console.error("Clipboard write failed", err);
-      // Fallback: The URL is already in the address bar (if pushState worked), 
-      // otherwise user might need to rely on manual copy if available.
-      showNotification("Clipboard access denied", 'error');
-    }
+    // 4. Construct Tweet with Evals
+    const tweetText = `Code Transmutation Engine Report 🧬\n\nI just evolved some code through ${cycles} quantum cycles.\n\nEvals:\n🔥 Entropy: ${heatTemp}\n❄️ Stabilization: ${coolTemp}\n🤖 Model: ${state.activeModel || "gemini-2.5-flash"}\n\nWitness the transmutation:`;
+    
+    const shareUrl = url.toString();
+    const twitterIntent = `https://x.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(shareUrl)}`;
+    
+    window.open(twitterIntent, '_blank');
+    showNotification("Opened X (Twitter) share window");
   };
 
   const handleCopyResult = async () => {
@@ -947,11 +703,19 @@ ${final}
             <div>
                 <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
                     Code Transmutation Engine
-                    {state.activeModel && (
-                        <span className="text-[10px] uppercase tracking-wider bg-slate-800 border border-slate-700 text-slate-400 px-1.5 py-0.5 rounded font-mono">
-                            {state.activeModel}
-                        </span>
-                    )}
+                    <div className="relative group">
+                        <select
+                            value={selectedModel}
+                            onChange={(e) => setSelectedModel(e.target.value)}
+                            disabled={state.isProcessing}
+                            className="appearance-none bg-slate-800 border border-slate-700 text-slate-400 text-[10px] uppercase tracking-wider pl-2 pr-6 py-0.5 rounded font-mono hover:border-slate-500 focus:outline-none focus:border-magma-500 cursor-pointer disabled:opacity-50 transition-colors"
+                        >
+                            <option value="auto">AUTO (SMART)</option>
+                            <option value="gemini-2.5-flash">GEMINI 2.5 FLASH</option>
+                            <option value="gemini-3-pro-preview">GEMINI 3 PRO</option>
+                        </select>
+                        <ChevronDown className="w-3 h-3 text-slate-500 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
                 </h1>
                 <p className="text-xs text-slate-500 font-mono hidden sm:block">SOURCE_SPEC + ENTROPY({heatTemp}) + STABILIZATION({coolTemp}) = EVOLUTION</p>
             </div>
@@ -961,18 +725,28 @@ ${final}
                 onClick={handleShare}
                 disabled={state.isProcessing}
                 className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Copy Share Link"
+                title="Share to X"
              >
-                <Link className="w-5 h-5" />
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="w-5 h-5 fill-current">
+                    <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z" />
+                </svg>
              </button>
              <div className="w-px h-6 bg-slate-700 mx-1"></div>
              <button 
                 onClick={handleDownloadReport}
                 disabled={state.isProcessing}
                 className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Download Report (.md)"
+                title="Download Report (.html)"
              >
                 <FileDown className="w-5 h-5" />
+             </button>
+             <button 
+                onClick={handleDownloadImage}
+                disabled={state.isProcessing}
+                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Download Report Image (.png)"
+             >
+                <FileImage className="w-5 h-5" />
              </button>
              <button 
                 onClick={handleSaveSession}
