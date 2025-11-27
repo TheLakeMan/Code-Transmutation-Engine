@@ -1,3 +1,4 @@
+
 import React, { useState, useReducer, useCallback, useEffect, useRef } from 'react';
 import { AlchemyEngine } from './services/alchemyService';
 import { ProcessVisualizer } from './components/ProcessVisualizer';
@@ -7,6 +8,7 @@ import { IgnitionState, ProcessPhase, SavedSession, Language } from './types';
 import { FlaskConical, Play, Square, RotateCcw, AlertTriangle, Info, ThermometerSun, ThermometerSnowflake, Save, FolderOpen, Check, Loader2, Code2, Copy, FileDown, Eraser, Lock, FileImage, ChevronDown } from 'lucide-react';
 import { detectLanguage } from './utils/languageDetector';
 import { ExamplesDropdown } from './components/ExamplesDropdown';
+import { AutogramReport } from './components/AutogramReport';
 
 const alchemy = new AlchemyEngine();
 
@@ -110,6 +112,10 @@ const App: React.FC = () => {
   const currentHeatText = state.history[state.history.length - 1]?.heatOutput || "";
   const currentCoolText = state.history[state.history.length - 1]?.coolOutput || "";
   
+  // Heuristic to detect Autogram prompt
+  const isAutogramTask = (inputText.toLowerCase().includes("self-descriptive") && inputText.toLowerCase().includes("autogram")) 
+                      || inputText.includes("Autogram Validator");
+
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
       setNotification({ message, type });
       setTimeout(() => setNotification(null), 4000);
@@ -947,6 +953,11 @@ const App: React.FC = () => {
                     </pre>
                 </div>
             </div>
+        )}
+        
+        {/* Autogram Report - Conditional */}
+        {state.currentState && !state.isProcessing && isAutogramTask && (
+           <AutogramReport output={state.currentState} />
         )}
 
         {/* History Log */}
