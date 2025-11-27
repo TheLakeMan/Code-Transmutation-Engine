@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, useState, useEffect, useMemo } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, Maximize2, Minimize2 } from 'lucide-react';
 
 interface CodeEditorProps {
   value: string;
@@ -14,38 +14,24 @@ const detectRegions = (code: string) => {
   const stack: { indent: number; line: number }[] = [];
 
   lines.forEach((line, i) => {
-    // Skip empty lines for indentation calculation, but they are part of blocks
     if (!line.trim()) return;
 
     const indent = line.search(/\S|$/);
     
-    // Check stack for closed regions
     while (stack.length > 0 && stack[stack.length - 1].indent >= indent) {
       const top = stack.pop()!;
       if (top.indent > indent) {
-         // This block has ended. The previous line was the last line of the block.
-         // However, purely empty lines might separate blocks.
-         // A simple heuristic: end at i - 1.
          regions.set(top.line, i - 1);
       }
     }
-    
-    // Check if this line starts a new block (indented more than parent)
-    // Actually, in Python, a block starts after a colon and indentation increase.
-    // We just look for the next line being indented more.
-    // So we push every line to stack as a potential parent? No.
-    // We push if it *could* be a parent.
-    // Simpler: Just push every non-empty line with its indent.
     stack.push({ indent, line: i });
   });
 
-  // Close remaining blocks at the end of file
   while (stack.length > 0) {
       const top = stack.pop()!;
       regions.set(top.line, lines.length - 1);
   }
 
-  // Filter trivial regions (single line)
   const validRegions = new Map<number, number>();
   regions.forEach((end, start) => {
       if (end > start) validRegions.set(start, end);
@@ -59,18 +45,16 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disable
   const preRef = useRef<HTMLPreElement>(null);
   const linesRef = useRef<HTMLDivElement>(null);
   
-  // State for folded lines (start line indices)
   const [foldedLines, setFoldedLines] = useState<Set<number>>(new Set());
+  const [isMaximized, setIsMaximized] = useState(false);
   
-  // Memoized regions detection
   const regions = useMemo(() => detectRegions(value), [value]);
 
-  // Compute projection: Full Code -> Visible Code
   const { visibleCode, lineMap, hiddenBlocks } = useMemo(() => {
     const fullLines = value.split('\n');
     const visibleLines: string[] = [];
-    const map: number[] = []; // visibleIndex -> fullIndex
-    const hidden: Map<number, string[]> = new Map(); // visibleIndex -> hidden lines
+    const map: number[] = []; 
+    const hidden: Map<number, string[]> = new Map();
 
     let i = 0;
     while (i < fullLines.length) {
@@ -81,7 +65,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disable
         visibleLines.push(header + ' # ...');
         map.push(i);
         
-        // Store hidden content
         const block = fullLines.slice(i + 1, end + 1);
         hidden.set(visibleLines.length - 1, block);
         
@@ -100,7 +83,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disable
     };
   }, [value, foldedLines, regions]);
 
-  // Sync scrolling
   const handleScroll = useCallback(() => {
     if (textareaRef.current) {
       const { scrollTop, scrollLeft } = textareaRef.current;
@@ -114,14 +96,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disable
     }
   }, []);
 
-  // Handle Edits
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newVisibleCode = e.target.value;
     const newVisibleLines = newVisibleCode.split('\n');
     const oldVisibleLines = visibleCode.split('\n');
     
-    // 1. Identify the range of change in visible lines
-    // Simple diff: find first changed line index and last changed line index
     let start = 0;
     while (
         start < oldVisibleLines.length && 
@@ -143,35 +122,22 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disable
         endNew--;
     }
     
-    // 2. Reconstruct Full Code
     let newFullLines: string[] = [];
     
-    // Part A: Unchanged Prefix
     for (let i = 0; i < start; i++) {
         const fullIdx = lineMap[i];
         newFullLines.push(value.split('\n')[fullIdx]);
-        // If this line was folded, append its hidden block
         if (hiddenBlocks.has(i)) {
             newFullLines.push(...hiddenBlocks.get(i)!);
         }
     }
 
-    // Part B: The Changed Section (New Content)
-    // Note: We intentionally discard the hidden blocks associated with deleted/modified lines in the range [start, endOld]
     for (let i = start; i <= endNew; i++) {
         let line = newVisibleLines[i];
-        // If user didn't modify the placeholder " # ...", we could try to preserve folding?
-        // But simplifying: any edit to a folded line unfolds it or deletes the block if line deleted.
-        // Special case: If the user just pressed enter at the end of a folded line, 
-        // they might want to keep the fold. This is getting complex.
-        // Current behavior: If you touch the folded line, you lose the hidden block (it's deleted).
-        // Except: if we can map it back to an existing hidden block by index?
-        // Risky. Let's strip the visual artifact if present to be clean.
         line = line.replace(/ # \.\.\.$/, ''); 
         newFullLines.push(line);
     }
 
-    // Part C: Unchanged Suffix
     for (let i = endOld + 1; i < oldVisibleLines.length; i++) {
         const fullIdx = lineMap[i];
         newFullLines.push(value.split('\n')[fullIdx]);
@@ -182,21 +148,9 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disable
 
     const reconstructed = newFullLines.join('\n');
     
-    // 3. Update Folded State (Shift indices)
-    // We need to know how many lines were inserted/removed in the Full Code before each existing fold.
-    // This is hard to do perfectly in one pass without more complex tracking.
-    // Safe fallback: Clear folds that were involved in the edit, shift others.
-    // For now, to keep it robust: We will just reset folds if structure changes drastically? 
-    // No, that's annoying.
-    // Let's try to preserve folds that are strictly AFTER the edit.
-    
     const linesAddedInFull = newFullLines.length - value.split('\n').length;
-    // The visual change `start` corresponds to `lineMap[start]` in full code.
-    // Any fold index < lineMap[start] is safe.
-    // Any fold index > lineMap[endOld] needs to be shifted by `linesAddedInFull`.
     
     const safeThresholdBefore = start < lineMap.length ? lineMap[start] : value.split('\n').length;
-    // For suffix, we find the full-index of the first line in suffix
     const safeThresholdAfter = (endOld + 1) < lineMap.length ? lineMap[endOld + 1] : value.split('\n').length;
 
     const newFolded = new Set<number>();
@@ -206,7 +160,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disable
         } else if (lineIdx >= safeThresholdAfter) {
             newFolded.add(lineIdx + linesAddedInFull);
         }
-        // Folds inside the edited region are lost (unfolded/deleted).
     });
     
     setFoldedLines(newFolded);
@@ -237,9 +190,23 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disable
   const visibleLinesArr = visibleCode.split('\n');
 
   return (
-    <div className="relative font-mono text-sm h-[600px] border border-slate-700 rounded-xl overflow-hidden bg-[#0d1117] group focus-within:ring-2 focus-within:ring-magma-500/50 focus-within:border-magma-500 transition-all shadow-inner">
+    <div 
+      className={`relative font-mono text-sm border border-slate-700 rounded-xl overflow-hidden bg-[#0d1117] group focus-within:ring-2 focus-within:ring-magma-500/50 focus-within:border-magma-500 transition-all shadow-inner 
+      ${isMaximized ? 'fixed inset-4 z-[60] h-[calc(100vh-2rem)] shadow-2xl' : 'h-[600px]'}`}
+    >
       
-      {/* Gutter (Line Numbers + Fold Icons) */}
+      {/* Controls Overlay */}
+      <div className="absolute top-2 right-4 z-50 flex items-center gap-2">
+         <button 
+           onClick={() => setIsMaximized(!isMaximized)}
+           className="p-1.5 bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white rounded-md backdrop-blur border border-slate-700 transition-colors"
+           title={isMaximized ? "Minimize" : "Maximize Editor"}
+         >
+            {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+         </button>
+      </div>
+
+      {/* Gutter */}
       <div 
         ref={linesRef}
         className="absolute left-0 top-0 bottom-0 w-12 bg-[#0d1117] border-r border-slate-800/50 text-slate-600 select-none overflow-hidden z-20"
@@ -252,12 +219,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disable
                 
                 return (
                     <div key={i} className="leading-6 h-6 flex items-center pr-1 relative group/line">
-                         {/* Line Number */}
                          <span className="flex-1 text-right text-xs mr-1 opacity-50 group-hover/line:opacity-100 transition-opacity">
                             {fullIndex + 1}
                          </span>
                          
-                         {/* Fold Icon */}
                          <div className="w-4 h-4 flex items-center justify-center cursor-pointer hover:text-magma-500"
                               onMouseDown={(e) => { e.preventDefault(); toggleFold(i); }}
                          >
@@ -275,7 +240,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disable
 
       {/* Editor Area */}
       <div className="absolute top-0 bottom-0 right-0 left-12 bg-[#0d1117]">
-          {/* Highlight Layer */}
           <pre
             ref={preRef}
             aria-hidden="true"
@@ -288,7 +252,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disable
             dangerouslySetInnerHTML={{ __html: getHighlightedCode(visibleCode) }}
           />
 
-          {/* Input Layer */}
           <textarea
             ref={textareaRef}
             value={visibleCode}
@@ -304,7 +267,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disable
           />
       </div>
       
-      {/* Loading Overlay State for disabled */}
       {disabled && <div className="absolute inset-0 bg-slate-950/50 z-30 cursor-not-allowed" />}
     </div>
   );

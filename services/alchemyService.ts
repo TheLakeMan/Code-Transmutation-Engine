@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { IgnitionUpdateCallback, ProcessPhase, CycleData } from "../types";
 
 // Using gemini-2.5-flash as the workhorse for responsiveness.
@@ -37,6 +37,14 @@ export class AlchemyEngine {
       error: undefined,
     });
 
+    // Safety settings to allow creative/hallucinatory code without blocking
+    const safetySettings = [
+      { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+    ];
+
     try {
       for (let i = 0; i < cycles; i++) {
         if (this.shouldStop) break;
@@ -65,6 +73,7 @@ CRITICAL_INVARIANT: The core semantic invariant must persist, but the linguistic
             temperature: heatTemp,
             topP: 0.95,
             topK: 40,
+            safetySettings: safetySettings,
           }
         });
 
@@ -100,6 +109,7 @@ Output ONLY the code, no markdown explanation.`;
             temperature: coolTemp,
             topP: 0.95,
             topK: 20,
+            safetySettings: safetySettings,
           }
         });
 
