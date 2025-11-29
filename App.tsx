@@ -846,7 +846,7 @@ const App: React.FC = () => {
                     <input 
                         type="range" 
                         min="1" 
-                        max="5" 
+                        max="100" 
                         step="1"
                         value={cycles}
                         onChange={(e) => setCycles(parseInt(e.target.value))}
@@ -855,7 +855,7 @@ const App: React.FC = () => {
                     />
                     <div className="flex justify-between text-xs text-slate-600 font-mono mt-1">
                         <span>1</span>
-                        <span>5</span>
+                        <span>100</span>
                     </div>
                 </div>
 
@@ -867,8 +867,8 @@ const App: React.FC = () => {
                     </label>
                     <input 
                         type="range" 
-                        min="0.5" 
-                        max="1.5" 
+                        min="0.1" 
+                        max="1.7" 
                         step="0.1"
                         value={heatTemp}
                         onChange={(e) => setHeatTemp(parseFloat(e.target.value))}
@@ -889,7 +889,7 @@ const App: React.FC = () => {
                     <input 
                         type="range" 
                         min="0.1" 
-                        max="0.8" 
+                        max="1.0" 
                         step="0.1"
                         value={coolTemp}
                         onChange={(e) => setCoolTemp(parseFloat(e.target.value))}

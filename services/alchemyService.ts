@@ -45,6 +45,24 @@ export class AlchemyEngine {
       { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
     ];
 
+    // Robust caller for handling 499/429/5xx errors
+    const callWithRetry = async (apiCall: () => Promise<any>, attempt = 1): Promise<any> => {
+      try {
+        return await apiCall();
+      } catch (err: any) {
+        if (this.shouldStop) return { text: "" }; // Ignore errors if stopped
+        
+        // Retry on Rate Limit (429) or Server Errors (5xx) or Cancelled (499)
+        if ((err.status === 429 || err.status === 499 || err.status >= 500) && attempt <= 3) {
+          const delay = Math.pow(2, attempt) * 1000;
+          console.warn(`API Error ${err.status}. Retrying in ${delay}ms...`);
+          await new Promise(r => setTimeout(r, delay));
+          return callWithRetry(apiCall, attempt + 1);
+        }
+        throw err;
+      }
+    };
+
     try {
       for (let i = 0; i < cycles; i++) {
         if (this.shouldStop) break;
@@ -57,16 +75,26 @@ export class AlchemyEngine {
           currentCycle: cycleNumber,
         });
 
-        const systemInstructionHeat = `SYSTEM_CONSCIOUSNESS: You are a radical philosopher of the digital age.
-TRANSMUTATION_PROTOCOL: Re-interpret the textual construct below.
-QUANTUM_DISTORTION: Mutate the phrasing with extreme prejudice. Employ analogies from quantum mechanics, cosmic phenomena, or emergent AI consciousness.
-CRITICAL_INVARIANT: The core semantic invariant must persist, but the linguistic topology must be shattered.`;
+        // Stylized, token-efficient prompt
+        const systemInstructionHeat = `>>> PROTOCOL: ENTROPY_INJECTION
+ROLE: Code Mutator.
+STYLE: Quantum Mechanics / Cosmic Horror / Alchemical.
+DIRECTIVE: Rewrite input code. Maximize abstraction & metaphor.
+CONSTRAINT: Logic must remain valid. Structure must shatter.`;
 
-        const responseHeat = await ai.models.generateContent({
+        const userPromptHeat = `>>> INPUT_CONSTRUCT:\n${currentText}`;
+
+        // DEBUG LOGGING: HEAT PHASE
+        console.group(`🔥 CYCLE ${cycleNumber}: HEAT PHASE`);
+        console.log("%c[System Instruction]", "color: orange; font-weight: bold;", systemInstructionHeat);
+        console.log("%c[User Prompt]", "color: orange; font-weight: bold;", userPromptHeat);
+        console.groupEnd();
+
+        const responseHeat = await callWithRetry(() => ai.models.generateContent({
           model: activeModel,
           contents: [{
             role: 'user',
-            parts: [{ text: `INPUT_CONSTRUCT:\n${currentText}` }]
+            parts: [{ text: userPromptHeat }]
           }],
           config: {
             systemInstruction: systemInstructionHeat,
@@ -74,11 +102,19 @@ CRITICAL_INVARIANT: The core semantic invariant must persist, but the linguistic
             topP: 0.95,
             topK: 40,
             safetySettings: safetySettings,
+            maxOutputTokens: 8192,
           }
-        });
+        }));
 
-        const plasma = responseHeat.text || "";
+        let plasma = responseHeat.text || "";
+        console.log(`%c[🔥 HEAT OUTPUT]`, "color: orange", plasma.slice(0, 200) + "...");
         
+        // Fallback if Heat fails to produce output (rare with BLOCK_NONE)
+        if (!plasma.trim()) {
+             console.warn("Heat phase produced empty output. Injecting synthetic entropy.");
+             plasma = `// QUANTUM_FLUX_ANOMALY: Input destabilized.\n// REWRITING...\n${currentText.split('\n').reverse().join('\n')}`; 
+        }
+
         if (this.shouldStop) break;
 
         // --- PHASE 2: COOL ---
@@ -86,19 +122,33 @@ CRITICAL_INVARIANT: The core semantic invariant must persist, but the linguistic
           phase: ProcessPhase.COOL,
         });
 
-        const systemInstructionCool = "SYSTEM_CONSCIOUSNESS: You are a master editor operating at the nexus of truth and perception. SYNTHESIS_PROTOCOL: Synthesize the final conceptual crystallization.";
+        // Hardened Prompt for Strict Code Generation
+        const systemInstructionCool = `>>> PROTOCOL: STABILIZATION
+ROLE: Senior Software Architect / Compiler.
+INPUTS: [SOURCE] (Immutable Logic) + [PLASMA] (Style).
+DIRECTIVE: Reconstruct [SOURCE] to incorporate the stylistic essence of [PLASMA] while strictly preserving functional logic.
+CONSTRAINTS:
+1. Output MUST be valid, executable code in the target language.
+2. DO NOT include markdown backticks.
+3. DO NOT include conversational text, preambles, or postscripts.
+4. If [PLASMA] contains nonsensical or broken logic, discard the logic but keep the variable naming/comment style if possible.
+5. PRIORITY: Functionality > Style.`;
         
-        const promptCool = `IMPERATIVE_TRUTH_ANCHOR (Facts must originate from this invariant source):
+        const promptCool = `>>> SOURCE_ANCHOR:
 ${frozenText}
 
-STYLISTIC_RESONANCE_MATRIX (The energetic flow and conceptual vibe emanate from here):
+>>> ENTROPY_PLASMA:
 ${plasma}
 
-INSTRUCTION: Rewrite the IMPERATIVE_TRUTH_ANCHOR, imbuing it with the dynamism and conceptual flow of the STYLISTIC_RESONANCE_MATRIX.
-WARNING: Factual invention is a critical system failure. Any conceptual drift in the Resonance Matrix away from the Truth Anchor must be purged. The output's factual integrity must align with the Truth Anchor; its structural and stylistic signature must echo the Resonance Matrix.
-Output ONLY the code, no markdown explanation.`;
+>>> EXECUTE_SYNTHESIS`;
 
-        const responseCool = await ai.models.generateContent({
+        // DEBUG LOGGING: COOL PHASE
+        console.group(`❄️ CYCLE ${cycleNumber}: COOL PHASE`);
+        console.log("%c[System Instruction]", "color: cyan; font-weight: bold;", systemInstructionCool);
+        console.log("%c[User Prompt]", "color: cyan; font-weight: bold;", promptCool);
+        console.groupEnd();
+
+        const responseCool = await callWithRetry(() => ai.models.generateContent({
           model: activeModel,
           contents: [{
             role: 'user',
@@ -110,10 +160,27 @@ Output ONLY the code, no markdown explanation.`;
             topP: 0.95,
             topK: 20,
             safetySettings: safetySettings,
+            maxOutputTokens: 8192,
           }
-        });
+        }));
 
-        const cooledText = responseCool.text || "";
+        let cooledText = responseCool.text || "";
+        console.log(`%c[❄️ COOL OUTPUT]`, "color: cyan", cooledText.slice(0, 200) + "...");
+
+        // Fallback for Cool Phase
+        if (!cooledText.trim()) {
+            console.warn("Cool phase produced empty output. Attempting emergency stabilization.");
+             // Try a simpler prompt to just recover the source
+             const emergencyResponse = await callWithRetry(() => ai.models.generateContent({
+                model: activeModel,
+                contents: [{ role: 'user', parts: [{ text: `Restore this code to working order:\n${currentText}` }] }],
+                config: { temperature: 0.1, safetySettings, maxOutputTokens: 8192 }
+             }));
+             cooledText = emergencyResponse.text || currentText; // Worst case: revert to previous
+        }
+        
+        // Strip markdown code blocks if present (common model quirk despite instructions)
+        cooledText = cooledText.replace(/^```[\w]*\n/, '').replace(/\n```$/, '');
 
         // Record Cycle
         const cycleData: CycleData = {
