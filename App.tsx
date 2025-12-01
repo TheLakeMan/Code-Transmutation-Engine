@@ -5,10 +5,11 @@ import { ProcessVisualizer } from './components/ProcessVisualizer';
 import { HistoryLog } from './components/HistoryLog';
 import { CodeEditor } from './components/CodeEditor';
 import { IgnitionState, ProcessPhase, SavedSession, Language } from './types';
-import { FlaskConical, Play, Square, RotateCcw, AlertTriangle, Info, ThermometerSun, ThermometerSnowflake, Save, FolderOpen, Check, Loader2, Code2, Copy, FileDown, Eraser, Lock, FileImage, ChevronDown } from 'lucide-react';
+import { FlaskConical, Play, Square, RotateCcw, AlertTriangle, Info, ThermometerSun, ThermometerSnowflake, Save, FolderOpen, Check, Loader2, Code2, Copy, FileDown, Eraser, Lock, FileImage, ChevronDown, LayoutDashboard, Terminal } from 'lucide-react';
 import { detectLanguage } from './utils/languageDetector';
 import { ExamplesDropdown } from './components/ExamplesDropdown';
 import { AutogramReport } from './components/AutogramReport';
+import { AnalysisDashboard } from './components/AnalysisDashboard';
 
 const alchemy = new AlchemyEngine();
 
@@ -97,6 +98,7 @@ const App: React.FC = () => {
   const [editorKey, setEditorKey] = useState(0);
   const [language, setLanguage] = useState<Language>('python');
   const [selectedModel, setSelectedModel] = useState<string>('auto');
+  const [viewMode, setViewMode] = useState<'editor' | 'analysis'>('editor');
 
   // Auth state
   const [hasApiKey, setHasApiKey] = useState(false);
@@ -387,94 +389,60 @@ const App: React.FC = () => {
     const source = state.sourceMaterial || inputText;
     const final = state.currentState || source;
     
-    // Generate styled HTML content
-    let htmlContent = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Transmutation Report - ${timestamp}</title>
-<style>
-    body { background-color: #0f172a; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; line-height: 1.6; }
-    h1 { color: #f97316; border-bottom: 1px solid #334155; padding-bottom: 1rem; font-size: 1.8rem; }
-    h2 { color: #38bdf8; margin-top: 2.5rem; font-size: 1.4rem; border-left: 4px solid #38bdf8; padding-left: 0.75rem; }
-    h3 { color: #94a3b8; font-size: 0.9rem; text-transform: uppercase; margin-top: 1.5rem; letter-spacing: 0.05em; }
-    .config-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; background: #1e293b; padding: 1.5rem; border-radius: 0.75rem; margin-bottom: 2rem; }
-    .config-item { display: flex; flex-direction: column; }
-    .label { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 0.25rem; }
-    .value { font-weight: bold; color: #f8fafc; font-family: monospace; font-size: 1.1rem; }
-    pre { background: #020617; padding: 1.5rem; border-radius: 0.75rem; border: 1px solid #1e293b; overflow-x: auto; font-family: 'Menlo', 'Monaco', 'Courier New', monospace; color: #a5b4fc; font-size: 0.9rem; white-space: pre; }
-    .cycle-card { border: 1px solid #334155; border-radius: 0.75rem; padding: 1.5rem; margin-top: 1.5rem; background: #1e293b50; }
-    .cycle-header { display: inline-block; background: #334155; color: #fff; padding: 0.25rem 0.75rem; border-radius: 0.25rem; font-weight: bold; font-size: 0.8rem; margin-bottom: 1rem; }
-    .phase-heat pre { border-color: #7c2d12; background: #2a1205; color: #fdba74; }
-    .phase-cool pre { border-color: #0c4a6e; background: #081826; color: #bae6fd; }
-    footer { margin-top: 4rem; text-align: center; color: #64748b; font-size: 0.8rem; border-top: 1px solid #1e293b; padding-top: 2rem; }
-</style>
-</head>
-<body>
-    <h1>Code Transmutation Report</h1>
-    
-    <div class="config-grid">
-        <div class="config-item"><span class="label">Date Generated</span><span class="value" style="font-size: 0.9rem">${timestamp}</span></div>
-        <div class="config-item"><span class="label">Cycles</span><span class="value">${cycles}</span></div>
-        <div class="config-item"><span class="label">Entropy (Heat)</span><span class="value">${heatTemp}</span></div>
-        <div class="config-item"><span class="label">Stabilization (Cool)</span><span class="value">${coolTemp}</span></div>
-        <div class="config-item"><span class="label">AI Model</span><span class="value">${state.activeModel || "gemini-2.5-flash"}</span></div>
-    </div>
+    // Markdown Content Generation
+    let mdContent = `# Code Transmutation Report
+Generated: ${timestamp}
+Model: ${state.activeModel || "gemini-2.5-flash"}
 
-    <h2>Source Anchor</h2>
-    <pre>${source.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+## Configuration
+- Mutation Cycles: ${cycles}
+- Entropy (Heat): ${heatTemp}
+- Stabilization (Cool): ${coolTemp}
+
+## Source Anchor
+\`\`\`${language}
+${source}
+\`\`\`
 `;
 
     if (state.history.length > 0) {
-        htmlContent += `<h2>Transmutation Logs</h2>`;
+        mdContent += `\n## Transmutation Log\n`;
         state.history.forEach(cycle => {
-            htmlContent += `
-            <div class="cycle-card">
-                <div class="cycle-header">CYCLE ${cycle.cycleNumber}</div>
-                <h3>Phase 1: Entropy (Heat)</h3>
-                <div class="phase-heat"><pre>${cycle.heatOutput.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre></div>
-                
-                <h3>Phase 2: Stabilization (Cool)</h3>
-                <div class="phase-cool"><pre>${cycle.coolOutput.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre></div>
-            </div>`;
+            mdContent += `
+### Cycle ${cycle.cycleNumber}
+**Phase 1: Entropy (Heat)**
+\`\`\`
+${cycle.heatOutput}
+\`\`\`
+
+**Phase 2: Stabilization (Cool)**
+\`\`\`
+${cycle.coolOutput}
+\`\`\`
+`;
         });
     }
 
-    htmlContent += `
-    <h2>Final Evolution</h2>
-    <pre style="border-color: #10b981; background: #064e3b20; color: #6ee7b7;">${final.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
-    
-    <footer>Generated by Code Transmutation Engine</footer>
-</body>
-</html>`;
+    mdContent += `\n## Final Evolution
+\`\`\`${language}
+${final}
+\`\`\`
+`;
 
     try {
-        // Use Data URI approach to avoid Blob lifecycle issues
+        const blob = new Blob([mdContent], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
         const element = document.createElement('a');
-        element.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlContent));
-        element.setAttribute('download', `transmutation_report_${Date.now()}.html`);
-        element.style.display = 'none';
+        element.href = url;
+        element.download = `transmutation_report_${Date.now()}.md`;
         document.body.appendChild(element);
         element.click();
         document.body.removeChild(element);
-        showNotification("Report downloaded as HTML");
+        URL.revokeObjectURL(url);
+        showNotification("Report downloaded as Markdown");
     } catch (e) {
-        // Fallback: Open in new window/tab if download interaction is blocked
-        console.error("Download failed, attempting fallback", e);
-        try {
-            const win = window.open("", "_blank");
-            if (win) {
-                win.document.write(htmlContent);
-                win.document.close();
-                showNotification("Opened report in new tab");
-            } else {
-                throw new Error("Popup blocked");
-            }
-        } catch (err) {
-            showNotification("Failed to download or open report", "error");
-        }
+        console.error("Download failed", e);
+        showNotification("Failed to download report", "error");
     }
   }, [state, cycles, heatTemp, coolTemp, inputText, language]);
 
@@ -727,6 +695,22 @@ const App: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2">
+             <div className="hidden sm:flex bg-slate-800 rounded-lg p-1 mr-2 border border-slate-700">
+                 <button
+                    onClick={() => setViewMode('editor')}
+                    className={`px-3 py-1.5 rounded text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'editor' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                 >
+                     <Terminal className="w-3 h-3" /> Editor
+                 </button>
+                 <button
+                    onClick={() => setViewMode('analysis')}
+                    className={`px-3 py-1.5 rounded text-xs font-bold transition-all flex items-center gap-2 ${viewMode === 'analysis' ? 'bg-magma-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}
+                    disabled={state.history.length === 0}
+                    title={state.history.length === 0 ? "Generate code to view analysis" : "View Analysis"}
+                 >
+                     <LayoutDashboard className="w-3 h-3" /> Analysis
+                 </button>
+             </div>
              <button 
                 onClick={handleShare}
                 disabled={state.isProcessing}
@@ -742,7 +726,7 @@ const App: React.FC = () => {
                 onClick={handleDownloadReport}
                 disabled={state.isProcessing}
                 className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Download Report (.html)"
+                title="Download Report (.md)"
              >
                 <FileDown className="w-5 h-5" />
              </button>
@@ -787,181 +771,187 @@ const App: React.FC = () => {
             </div>
         )}
 
-        {/* Input & Controls Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left: Input */}
-            <div className="lg:col-span-2 space-y-4">
-                <label className="flex items-center justify-between text-sm font-semibold text-slate-400">
-                    <span className="flex items-center gap-2">
-                        Source Code (Immutable Logic)
-                        <span className="text-[10px] bg-slate-800 text-slate-500 px-1.5 rounded uppercase">{language}</span>
-                    </span>
-                    <div className="flex items-center gap-3">
-                         <ExamplesDropdown 
-                            onSelect={handleLoadExample} 
-                            disabled={state.isProcessing} 
-                         />
-                        <button 
-                          onClick={handleClear}
-                          disabled={state.isProcessing}
-                          className="text-xs text-slate-600 hover:text-red-400 flex items-center gap-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <Eraser className="w-3 h-3" /> Clear
-                        </button>
-                        <button 
-                          onClick={handleReset} 
-                          disabled={state.isProcessing}
-                          className="text-xs text-slate-600 hover:text-slate-400 flex items-center gap-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <RotateCcw className="w-3 h-3" /> Reset Defaults
-                        </button>
-                    </div>
-                </label>
-                <div className="relative">
-                    <CodeEditor 
-                        key={editorKey}
-                        value={inputText}
-                        onChange={setInputText}
-                        disabled={state.isProcessing}
-                        language={language}
-                    />
-                    {state.isProcessing && (
-                        <div className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 bg-slate-900/90 backdrop-blur rounded-full border border-magma-500/30 text-xs font-mono text-magma-400 shadow-xl pointer-events-none z-40 animate-in fade-in duration-300">
-                           <Loader2 className="w-3 h-3 animate-spin" />
-                           <span>ANALYZING SYNTAX...</span>
+        {viewMode === 'analysis' && state.history.length > 0 ? (
+           <AnalysisDashboard history={state.history} />
+        ) : (
+           <>
+            {/* Input & Controls Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Left: Input */}
+                <div className="lg:col-span-2 space-y-4">
+                    <label className="flex items-center justify-between text-sm font-semibold text-slate-400">
+                        <span className="flex items-center gap-2">
+                            Source Code (Immutable Logic)
+                            <span className="text-[10px] bg-slate-800 text-slate-500 px-1.5 rounded uppercase">{language}</span>
+                        </span>
+                        <div className="flex items-center gap-3">
+                             <ExamplesDropdown 
+                                onSelect={handleLoadExample} 
+                                disabled={state.isProcessing} 
+                             />
+                            <button 
+                              onClick={handleClear}
+                              disabled={state.isProcessing}
+                              className="text-xs text-slate-600 hover:text-red-400 flex items-center gap-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <Eraser className="w-3 h-3" /> Clear
+                            </button>
+                            <button 
+                              onClick={handleReset} 
+                              disabled={state.isProcessing}
+                              className="text-xs text-slate-600 hover:text-slate-400 flex items-center gap-1 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                <RotateCcw className="w-3 h-3" /> Reset Defaults
+                            </button>
                         </div>
-                    )}
+                    </label>
+                    <div className="relative">
+                        <CodeEditor 
+                            key={editorKey}
+                            value={inputText}
+                            onChange={setInputText}
+                            disabled={state.isProcessing}
+                            language={language}
+                        />
+                        {state.isProcessing && (
+                            <div className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 bg-slate-900/90 backdrop-blur rounded-full border border-magma-500/30 text-xs font-mono text-magma-400 shadow-xl pointer-events-none z-40 animate-in fade-in duration-300">
+                               <Loader2 className="w-3 h-3 animate-spin" />
+                               <span>ANALYZING SYNTAX...</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Right: Controls */}
+                <div className="space-y-6 bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
+                    
+                    {/* Cycles Control */}
+                    <div>
+                        <label className="text-sm font-semibold text-slate-400 mb-2 flex items-center">
+                            Mutation Cycles: <span className="text-white ml-2">{cycles}</span>
+                            {state.isProcessing && <Loader2 className="w-3 h-3 animate-spin text-slate-600 ml-auto" />}
+                        </label>
+                        <input 
+                            type="range" 
+                            min="1" 
+                            max="100" 
+                            step="1"
+                            value={cycles}
+                            onChange={(e) => setCycles(parseInt(e.target.value))}
+                            disabled={state.isProcessing}
+                            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-magma-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                        <div className="flex justify-between text-xs text-slate-600 font-mono mt-1">
+                            <span>1</span>
+                            <span>100</span>
+                        </div>
+                    </div>
+
+                    {/* Heat Temp Control */}
+                    <div>
+                        <label className="text-sm font-semibold text-magma-400 mb-2 flex items-center gap-2">
+                            <ThermometerSun className="w-4 h-4" />
+                            Entropy (Heat): <span className="text-white">{heatTemp}</span>
+                        </label>
+                        <input 
+                            type="range" 
+                            min="0.1" 
+                            max="1.7" 
+                            step="0.1"
+                            value={heatTemp}
+                            onChange={(e) => setHeatTemp(parseFloat(e.target.value))}
+                            disabled={state.isProcessing}
+                            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-magma-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                        <div className="text-xs text-slate-500 mt-1">
+                            Higher values increase hallucination & weirdness.
+                        </div>
+                    </div>
+
+                    {/* Cool Temp Control */}
+                    <div>
+                        <label className="text-sm font-semibold text-frost-400 mb-2 flex items-center gap-2">
+                            <ThermometerSnowflake className="w-4 h-4" />
+                            Stabilization (Cool): <span className="text-white">{coolTemp}</span>
+                        </label>
+                        <input 
+                            type="range" 
+                            min="0.1" 
+                            max="1.0" 
+                            step="0.1"
+                            value={coolTemp}
+                            onChange={(e) => setCoolTemp(parseFloat(e.target.value))}
+                            disabled={state.isProcessing}
+                            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-frost-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                        />
+                        <div className="text-xs text-slate-500 mt-1">
+                            Lower values increase adherence to logic.
+                        </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="pt-2 flex gap-3">
+                        {!state.isProcessing ? (
+                            <button 
+                                onClick={handleStart}
+                                disabled={!inputText.trim()}
+                                className="flex-1 bg-gradient-to-r from-magma-600 to-magma-500 hover:from-magma-500 hover:to-magma-400 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-magma-900/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                            >
+                                <Play className="w-4 h-4 fill-current" />
+                                IGNITE ENGINE
+                            </button>
+                        ) : (
+                            <button 
+                                onClick={handleStop}
+                                className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors border border-slate-600"
+                            >
+                                <Square className="w-4 h-4 fill-current" />
+                                STOP
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            {/* Right: Controls */}
-            <div className="space-y-6 bg-slate-800/30 rounded-xl p-6 border border-slate-700/50">
-                
-                {/* Cycles Control */}
-                <div>
-                    <label className="text-sm font-semibold text-slate-400 mb-2 flex items-center">
-                        Mutation Cycles: <span className="text-white ml-2">{cycles}</span>
-                        {state.isProcessing && <Loader2 className="w-3 h-3 animate-spin text-slate-600 ml-auto" />}
-                    </label>
-                    <input 
-                        type="range" 
-                        min="1" 
-                        max="100" 
-                        step="1"
-                        value={cycles}
-                        onChange={(e) => setCycles(parseInt(e.target.value))}
-                        disabled={state.isProcessing}
-                        className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-magma-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <div className="flex justify-between text-xs text-slate-600 font-mono mt-1">
-                        <span>1</span>
-                        <span>100</span>
-                    </div>
-                </div>
+            {/* Visualization Section */}
+            <ProcessVisualizer 
+                phase={state.phase} 
+                heatText={currentHeatText}
+                coolText={currentCoolText}
+            />
 
-                {/* Heat Temp Control */}
-                <div>
-                    <label className="text-sm font-semibold text-magma-400 mb-2 flex items-center gap-2">
-                        <ThermometerSun className="w-4 h-4" />
-                        Entropy (Heat): <span className="text-white">{heatTemp}</span>
-                    </label>
-                    <input 
-                        type="range" 
-                        min="0.1" 
-                        max="1.7" 
-                        step="0.1"
-                        value={heatTemp}
-                        onChange={(e) => setHeatTemp(parseFloat(e.target.value))}
-                        disabled={state.isProcessing}
-                        className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-magma-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <div className="text-xs text-slate-500 mt-1">
-                        Higher values increase hallucination & weirdness.
-                    </div>
-                </div>
-
-                {/* Cool Temp Control */}
-                <div>
-                    <label className="text-sm font-semibold text-frost-400 mb-2 flex items-center gap-2">
-                        <ThermometerSnowflake className="w-4 h-4" />
-                        Stabilization (Cool): <span className="text-white">{coolTemp}</span>
-                    </label>
-                    <input 
-                        type="range" 
-                        min="0.1" 
-                        max="1.0" 
-                        step="0.1"
-                        value={coolTemp}
-                        onChange={(e) => setCoolTemp(parseFloat(e.target.value))}
-                        disabled={state.isProcessing}
-                        className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-frost-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                    />
-                    <div className="text-xs text-slate-500 mt-1">
-                        Lower values increase adherence to logic.
-                    </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="pt-2 flex gap-3">
-                    {!state.isProcessing ? (
+            {/* History / Output Section */}
+            {state.currentState && !state.isProcessing && (
+                <div className="mt-12 bg-slate-800/20 border border-slate-700 rounded-xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="bg-slate-800/50 p-4 border-b border-slate-700 flex items-center justify-between">
+                        <h3 className="font-bold text-slate-200 flex items-center gap-2">
+                            <FlaskConical className="w-5 h-5 text-frost-400" />
+                            Final Transmutation
+                        </h3>
                         <button 
-                            onClick={handleStart}
-                            disabled={!inputText.trim()}
-                            className="flex-1 bg-gradient-to-r from-magma-600 to-magma-500 hover:from-magma-500 hover:to-magma-400 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-magma-900/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+                            onClick={handleCopyResult}
+                            className="text-xs text-slate-400 hover:text-white flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded transition-colors"
                         >
-                            <Play className="w-4 h-4 fill-current" />
-                            IGNITE ENGINE
+                            <Copy className="w-3 h-3" /> Copy Code
                         </button>
-                    ) : (
-                        <button 
-                            onClick={handleStop}
-                            className="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors border border-slate-600"
-                        >
-                            <Square className="w-4 h-4 fill-current" />
-                            STOP
-                        </button>
-                    )}
+                    </div>
+                    <div className="p-0">
+                        <pre className="p-6 overflow-x-auto text-sm font-mono text-emerald-100 bg-[#0a0f1e] custom-scrollbar">
+                            <code>{state.currentState}</code>
+                        </pre>
+                    </div>
                 </div>
-            </div>
-        </div>
+            )}
+            
+            {/* Autogram Report - Conditional */}
+            {state.currentState && !state.isProcessing && isAutogramTask && (
+               <AutogramReport output={state.currentState} />
+            )}
 
-        {/* Visualization Section */}
-        <ProcessVisualizer 
-            phase={state.phase} 
-            heatText={currentHeatText}
-            coolText={currentCoolText}
-        />
-
-        {/* History / Output Section */}
-        {state.currentState && !state.isProcessing && (
-            <div className="mt-12 bg-slate-800/20 border border-slate-700 rounded-xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="bg-slate-800/50 p-4 border-b border-slate-700 flex items-center justify-between">
-                    <h3 className="font-bold text-slate-200 flex items-center gap-2">
-                        <FlaskConical className="w-5 h-5 text-frost-400" />
-                        Final Transmutation
-                    </h3>
-                    <button 
-                        onClick={handleCopyResult}
-                        className="text-xs text-slate-400 hover:text-white flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded transition-colors"
-                    >
-                        <Copy className="w-3 h-3" /> Copy Code
-                    </button>
-                </div>
-                <div className="p-0">
-                    <pre className="p-6 overflow-x-auto text-sm font-mono text-emerald-100 bg-[#0a0f1e] custom-scrollbar">
-                        <code>{state.currentState}</code>
-                    </pre>
-                </div>
-            </div>
+            {/* History Log */}
+            <HistoryLog history={state.history} language={language} />
+           </>
         )}
-        
-        {/* Autogram Report - Conditional */}
-        {state.currentState && !state.isProcessing && isAutogramTask && (
-           <AutogramReport output={state.currentState} />
-        )}
-
-        {/* History Log */}
-        <HistoryLog history={state.history} language={language} />
         
         {/* Info Footer */}
         <div className="mt-16 pt-8 border-t border-slate-800 text-center text-slate-600 text-sm flex items-center justify-center gap-2">

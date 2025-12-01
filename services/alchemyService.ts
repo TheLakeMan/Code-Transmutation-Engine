@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, HarmCategory, HarmBlockThreshold } from "@google/genai";
 import { IgnitionUpdateCallback, ProcessPhase, CycleData } from "../types";
+import { calculateMetrics } from "../utils/codeMetrics";
 
 export class AlchemyEngine {
   private shouldStop: boolean = false;
@@ -68,6 +69,24 @@ export class AlchemyEngine {
         if (this.shouldStop) break;
 
         const cycleNumber = i + 1;
+        const progress = i / cycles;
+
+        // --- DYNAMIC PARAMETER ADJUSTMENT ---
+        // 1. Heat Annealing: Reduce base heat slightly over time to converge.
+        // 2. Stagnation Breaker: If previous cycle was too similar (high convergence), SPIKE the heat.
+        let dynamicHeat = heatTemp * (1 - (progress * 0.3)); // 30% natural decay
+        
+        if (i > 0) {
+            const prevMetrics = history[i - 1].metrics;
+            if (prevMetrics.convergence > 0.85) {
+                console.log(`%c[SYSTEM] Stagnation Detected (Convergence: ${prevMetrics.convergence.toFixed(2)}). Spiking Entropy.`, "color: #f97316; font-weight: bold;");
+                dynamicHeat = Math.min(2.0, dynamicHeat * 1.5); // 50% boost, capped at 2.0
+            }
+        }
+        
+        // 3. Cool Annealing: Make stabilization STRICTER (lower temp) as we approach the end.
+        let dynamicCool = coolTemp * (1 - (progress * 0.6)); // 60% decay
+        if (dynamicCool < 0.1) dynamicCool = 0.1; // Hard floor
 
         // --- PHASE 1: HEAT ---
         onUpdate({
@@ -86,6 +105,7 @@ CONSTRAINT: Logic must remain valid. Structure must shatter.`;
 
         // DEBUG LOGGING: HEAT PHASE
         console.group(`🔥 CYCLE ${cycleNumber}: HEAT PHASE`);
+        console.log(`%c[Dynamic Config] Heat: ${dynamicHeat.toFixed(2)} (Base: ${heatTemp})`, "color: #fdba74");
         console.log("%c[System Instruction]", "color: orange; font-weight: bold;", systemInstructionHeat);
         console.log("%c[User Prompt]", "color: orange; font-weight: bold;", userPromptHeat);
         console.groupEnd();
@@ -98,7 +118,7 @@ CONSTRAINT: Logic must remain valid. Structure must shatter.`;
           }],
           config: {
             systemInstruction: systemInstructionHeat,
-            temperature: heatTemp,
+            temperature: dynamicHeat,
             topP: 0.95,
             topK: 40,
             safetySettings: safetySettings,
@@ -144,6 +164,7 @@ ${plasma}
 
         // DEBUG LOGGING: COOL PHASE
         console.group(`❄️ CYCLE ${cycleNumber}: COOL PHASE`);
+        console.log(`%c[Dynamic Config] Cool: ${dynamicCool.toFixed(2)} (Base: ${coolTemp})`, "color: #bae6fd");
         console.log("%c[System Instruction]", "color: cyan; font-weight: bold;", systemInstructionCool);
         console.log("%c[User Prompt]", "color: cyan; font-weight: bold;", promptCool);
         console.groupEnd();
@@ -156,7 +177,7 @@ ${plasma}
           }],
           config: {
             systemInstruction: systemInstructionCool,
-            temperature: coolTemp,
+            temperature: dynamicCool,
             topP: 0.95,
             topK: 20,
             safetySettings: safetySettings,
@@ -182,12 +203,16 @@ ${plasma}
         // Strip markdown code blocks if present (common model quirk despite instructions)
         cooledText = cooledText.replace(/^```[\w]*\n/, '').replace(/\n```$/, '');
 
+        // Calculate Metrics
+        const metrics = calculateMetrics(plasma, cooledText);
+
         // Record Cycle
         const cycleData: CycleData = {
             cycleNumber,
             heatOutput: plasma,
             coolOutput: cooledText,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            metrics
         };
         history.push(cycleData);
         currentText = cooledText;
