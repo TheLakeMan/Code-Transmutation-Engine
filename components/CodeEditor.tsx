@@ -4,9 +4,10 @@ import { Language } from '../types';
 
 interface CodeEditorProps {
   value: string;
-  onChange: (value: string) => void;
+  onChange?: (value: string) => void;
   disabled?: boolean;
   language?: Language | string;
+  readOnly?: boolean;
 }
 
 // Helper to detect indentation-based regions (Python style)
@@ -42,7 +43,7 @@ const detectRegions = (code: string) => {
   return validRegions;
 };
 
-export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disabled, language = 'python' }) => {
+export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange = () => {}, disabled, language = 'python', readOnly }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const preRef = useRef<HTMLPreElement>(null);
   const linesRef = useRef<HTMLDivElement>(null);
@@ -99,6 +100,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disable
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (disabled || readOnly) return;
+
     const newVisibleCode = e.target.value;
     const newVisibleLines = newVisibleCode.split('\n');
     const oldVisibleLines = visibleCode.split('\n');
@@ -262,6 +265,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disable
             onChange={handleChange}
             onScroll={handleScroll}
             disabled={disabled}
+            readOnly={readOnly}
             spellCheck={false}
             autoCapitalize="off"
             autoComplete="off"
@@ -270,8 +274,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, disable
             style={{ fontFamily: '"JetBrains Mono", monospace', tabSize: 4 }}
           />
       </div>
-      
-      {disabled && <div className="absolute inset-0 bg-slate-950/50 z-30 cursor-not-allowed" />}
+
+      {(disabled || readOnly) && <div className="absolute inset-0 bg-slate-950/50 z-30 cursor-not-allowed" />}
     </div>
   );
 };

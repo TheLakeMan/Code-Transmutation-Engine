@@ -1,6 +1,9 @@
 
 import { CycleMetrics } from '../types';
 
+// Alias for clarity when comparing before/after states
+export type CodeMetrics = CycleMetrics;
+
 // Exported for use in visualizations
 export const calcEntropy = (str: string) => {
   if (!str) return 0;

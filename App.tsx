@@ -1,6 +1,5 @@
 
 import React, { useState, useReducer, useCallback, useEffect, useRef } from 'react';
-import { AlchemyEngine } from './services/alchemyService';
 import { ProcessVisualizer } from './components/ProcessVisualizer';
 import { HistoryLog } from './components/HistoryLog';
 import { CodeEditor } from './components/CodeEditor';
@@ -10,8 +9,14 @@ import { detectLanguage } from './utils/languageDetector';
 import { ExamplesDropdown } from './components/ExamplesDropdown';
 import { AutogramReport } from './components/AutogramReport';
 import { AnalysisDashboard } from './components/AnalysisDashboard';
-
-const alchemy = new AlchemyEngine();
+import { calculateMetrics } from './utils/codeMetrics';
+import { ignite } from './services/alchemyEngine';
+import { optimizeCode } from './services/optimizer/optimizerService';
+import { RefactorResultPanel } from './components/RefactorResultPanel';
+import { getProvider, listProviders } from './services/llm';
+import type { LLMProviderId } from './services/llm/types';
+import type { RefactorReport } from './services/optimizer/types';
+import type { EngineMode } from './types/engine';
 
 declare global {
     interface AIStudio {
@@ -97,8 +102,11 @@ const App: React.FC = () => {
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [editorKey, setEditorKey] = useState(0);
   const [language, setLanguage] = useState<Language>('python');
-  const [selectedModel, setSelectedModel] = useState<string>('auto');
+  const [engineMode, setEngineMode] = useState<EngineMode>('hallucination');
+  const [providerId, setProviderId] = useState<LLMProviderId>('gemini');
+  const [refactorReport, setRefactorReport] = useState<RefactorReport | null>(null);
   const [viewMode, setViewMode] = useState<'editor' | 'analysis'>('editor');
+  const providers = listProviders();
 
   // Auth state
   const [hasApiKey, setHasApiKey] = useState(false);
@@ -107,8 +115,9 @@ const App: React.FC = () => {
   const [state, dispatch] = useReducer(ignitionReducer, createInitialState(2));
 
   // Refs for Auto-save
-  const stateRef = useRef({ inputText, cycles, heatTemp, coolTemp, ignitionState: state });
+  const stateRef = useRef({ inputText, cycles, heatTemp, coolTemp, ignitionState: state, engineMode, providerId });
   const lastSavedStr = useRef<string>("");
+  const stopRef = useRef(false);
 
   // Derived state for current visualization
   const currentHeatText = state.history[state.history.length - 1]?.heatOutput || "";
@@ -165,8 +174,8 @@ const App: React.FC = () => {
 
   // Keep stateRef in sync for the interval
   useEffect(() => {
-    stateRef.current = { inputText, cycles, heatTemp, coolTemp, ignitionState: state };
-  }, [inputText, cycles, heatTemp, coolTemp, state]);
+    stateRef.current = { inputText, cycles, heatTemp, coolTemp, ignitionState: state, engineMode, providerId };
+  }, [inputText, cycles, heatTemp, coolTemp, state, engineMode, providerId]);
 
   // Auto-detect language
   useEffect(() => {
@@ -185,7 +194,9 @@ const App: React.FC = () => {
         cycles: 2,
         heatTemp: 1.1,
         coolTemp: 0.3,
-        ignitionState: createInitialState(2)
+        ignitionState: createInitialState(2),
+        engineMode: 'hallucination' as EngineMode,
+        providerId: 'gemini' as LLMProviderId
     };
     lastSavedStr.current = JSON.stringify(initialContent);
   }, []);
@@ -198,7 +209,9 @@ const App: React.FC = () => {
             cycles: stateRef.current.cycles,
             heatTemp: stateRef.current.heatTemp,
             coolTemp: stateRef.current.coolTemp,
-            ignitionState: stateRef.current.ignitionState
+            ignitionState: stateRef.current.ignitionState,
+            engineMode: stateRef.current.engineMode,
+            providerId: stateRef.current.providerId
         };
         const currentStr = JSON.stringify(currentContent);
 
@@ -231,6 +244,8 @@ const App: React.FC = () => {
         setCycles(session.cycles);
         setHeatTemp(session.heatTemp);
         setCoolTemp(session.coolTemp);
+        setEngineMode(session.engineMode || 'hallucination');
+        setProviderId(session.providerId || 'gemini');
         dispatch({ type: 'RESTORE_SESSION', payload: session.ignitionState });
         setEditorKey(prev => prev + 1);
         
@@ -240,7 +255,9 @@ const App: React.FC = () => {
             cycles: session.cycles,
             heatTemp: session.heatTemp,
             coolTemp: session.coolTemp,
-            ignitionState: session.ignitionState
+            ignitionState: session.ignitionState,
+            engineMode: session.engineMode,
+            providerId: session.providerId
         };
         lastSavedStr.current = JSON.stringify(content);
 
@@ -260,39 +277,118 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const handleStart = useCallback(() => {
+  const handleStart = useCallback(async () => {
     if (!inputText.trim()) return;
-    
-    // Auto-switch model based on complexity or use manual selection
-    let activeModel = selectedModel;
-    if (activeModel === 'auto') {
-        const shouldUsePro = cycles > 3 || heatTemp > 1.2;
-        activeModel = shouldUsePro ? "gemini-3-pro-preview" : "gemini-2.5-flash";
-    }
 
-    dispatch({ 
-        type: 'UPDATE_STATE', 
-        payload: { 
+    const provider = getProvider(providerId);
+    stopRef.current = false;
+    setRefactorReport(null);
+
+    dispatch({
+        type: 'UPDATE_STATE',
+        payload: {
             totalCycles: cycles,
             isProcessing: true,
             error: undefined,
-            activeModel: activeModel
-        } 
+            activeModel: provider.displayName,
+            sourceMaterial: inputText,
+            currentState: inputText,
+            history: [],
+            currentCycle: 0,
+            phase: ProcessPhase.IDLE
+        }
     });
 
-    alchemy.ignite(inputText, cycles, heatTemp, coolTemp, activeModel, (update) => {
-      dispatch({ type: 'UPDATE_STATE', payload: update });
-    });
-  }, [inputText, cycles, heatTemp, coolTemp, selectedModel]);
+    try {
+      if (engineMode === 'hallucination') {
+        const cycleHistory: typeof state.history = [];
+        await ignite({
+          sourceCode: inputText,
+          cycles,
+          heatTemp,
+          coolTemp,
+          provider,
+          shouldStop: () => stopRef.current,
+          onPhaseChange: (phase) => {
+            dispatch({ type: 'UPDATE_STATE', payload: { phase, currentCycle: cycleHistory.length + (phase === ProcessPhase.COOL ? 1 : 0) } });
+          },
+          onUpdate: (cycle) => {
+            cycleHistory.push(cycle);
+            dispatch({
+              type: 'UPDATE_STATE',
+              payload: {
+                currentState: cycle.coolOutput,
+                history: [...cycleHistory],
+                currentCycle: cycle.cycleNumber,
+                phase: ProcessPhase.COOL
+              }
+            });
+          }
+        });
+
+        dispatch({
+          type: 'UPDATE_STATE',
+          payload: {
+            isProcessing: false,
+            phase: stopRef.current ? ProcessPhase.IDLE : ProcessPhase.COMPLETE,
+            currentCycle: cycleHistory.length,
+            currentState: cycleHistory[cycleHistory.length - 1]?.coolOutput || inputText
+          }
+        });
+      } else {
+        dispatch({ type: 'UPDATE_STATE', payload: { phase: ProcessPhase.HEAT } });
+        const report = await optimizeCode({
+          code: inputText,
+          language,
+          goals: ['readability', 'reduce-complexity'],
+          provider,
+        });
+
+        setRefactorReport(report);
+        const syntheticMetrics = calculateMetrics(report.originalCode, report.optimizedCode);
+        const syntheticHistory = [{
+          cycleNumber: 1,
+          heatOutput: report.originalCode,
+          coolOutput: report.optimizedCode,
+          timestamp: Date.now(),
+          metrics: syntheticMetrics,
+          sourceMaterial: report.originalCode
+        }];
+
+        dispatch({
+          type: 'UPDATE_STATE',
+          payload: {
+            history: syntheticHistory,
+            currentState: report.optimizedCode,
+            sourceMaterial: report.originalCode,
+            isProcessing: false,
+            phase: ProcessPhase.COMPLETE,
+            currentCycle: 1,
+            totalCycles: syntheticHistory.length
+          }
+        });
+      }
+    } catch (error: any) {
+      console.error(error);
+      dispatch({
+        type: 'UPDATE_STATE',
+        payload: {
+          phase: ProcessPhase.ERROR,
+          isProcessing: false,
+          error: error?.message || 'An alchemical misalignment occurred.'
+        }
+      });
+    }
+  }, [inputText, cycles, heatTemp, coolTemp, providerId, engineMode, language]);
 
   const handleStop = useCallback(() => {
-    alchemy.stop();
-    dispatch({ 
-        type: 'UPDATE_STATE', 
-        payload: { 
-            isProcessing: false, 
-            phase: ProcessPhase.IDLE 
-        } 
+    stopRef.current = true;
+    dispatch({
+        type: 'UPDATE_STATE',
+        payload: {
+            isProcessing: false,
+            phase: ProcessPhase.IDLE
+        }
     });
   }, []);
 
@@ -301,13 +397,16 @@ const App: React.FC = () => {
     setHeatTemp(1.1);
     setCoolTemp(0.3);
     setCycles(2);
-    setSelectedModel('auto');
+    setEngineMode('hallucination');
+    setProviderId('gemini');
+    setRefactorReport(null);
     dispatch({ type: 'RESET', payload: { totalCycles: 2 } });
     setEditorKey(prev => prev + 1);
   };
 
   const handleClear = () => {
     setInputText("");
+    setRefactorReport(null);
     // Keep settings, just clear text
     dispatch({ type: 'UPDATE_STATE', payload: { sourceMaterial: "", currentState: "", history: [], phase: ProcessPhase.IDLE, error: undefined } });
     setEditorKey(prev => prev + 1);
@@ -326,7 +425,9 @@ const App: React.FC = () => {
               cycles,
               heatTemp,
               coolTemp,
-              ignitionState: state
+              ignitionState: state,
+              engineMode,
+              providerId
           };
           const session: SavedSession = {
               ...content,
@@ -364,7 +465,9 @@ const App: React.FC = () => {
           setCycles(session.cycles);
           setHeatTemp(session.heatTemp);
           setCoolTemp(session.coolTemp);
-          
+          setEngineMode(session.engineMode || 'hallucination');
+          setProviderId(session.providerId || 'gemini');
+
           dispatch({ type: 'RESTORE_SESSION', payload: session.ignitionState });
           setEditorKey(prev => prev + 1);
           
@@ -373,7 +476,9 @@ const App: React.FC = () => {
               cycles: session.cycles,
               heatTemp: session.heatTemp,
               coolTemp: session.coolTemp,
-              ignitionState: session.ignitionState
+              ignitionState: session.ignitionState,
+              engineMode: session.engineMode,
+              providerId: session.providerId
           };
           lastSavedStr.current = JSON.stringify(content);
           
@@ -388,11 +493,12 @@ const App: React.FC = () => {
     const timestamp = new Date().toLocaleString();
     const source = state.sourceMaterial || inputText;
     const final = state.currentState || source;
-    
+    const modelLabel = state.activeModel || getProvider(providerId)?.displayName || providerId;
+
     // Markdown Content Generation
     let mdContent = `# Code Transmutation Report
 Generated: ${timestamp}
-Model: ${state.activeModel || "gemini-2.5-flash"}
+Model: ${modelLabel}
 
 ## Configuration
 - Mutation Cycles: ${cycles}
@@ -444,7 +550,7 @@ ${final}
         console.error("Download failed", e);
         showNotification("Failed to download report", "error");
     }
-  }, [state, cycles, heatTemp, coolTemp, inputText, language]);
+  }, [state, cycles, heatTemp, coolTemp, inputText, language, providerId]);
 
   const handleDownloadImage = useCallback(async () => {
     // @ts-ignore
@@ -496,7 +602,7 @@ ${final}
         
         <div class="grid">
             <div class="card"><span class="label">Cycles</span><span class="value">${cycles}</span></div>
-            <div class="card"><span class="label">Model</span><span class="value">${state.activeModel || "gemini-2.5-flash"}</span></div>
+            <div class="card"><span class="label">Model</span><span class="value">${modelLabel}</span></div>
             <div class="card"><span class="label">Entropy</span><span class="value">${heatTemp}</span></div>
             <div class="card"><span class="label">Stabilization</span><span class="value">${coolTemp}</span></div>
         </div>
@@ -547,7 +653,7 @@ ${final}
     } finally {
         document.body.removeChild(container);
     }
-  }, [state, cycles, heatTemp, coolTemp, inputText]);
+  }, [state, cycles, heatTemp, coolTemp, inputText, providerId]);
 
   const handleShare = async () => {
     const session: SavedSession = {
@@ -556,7 +662,9 @@ ${final}
       heatTemp,
       coolTemp,
       ignitionState: state,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      engineMode,
+      providerId
     };
     
     // 1. Try encoding full session
@@ -587,7 +695,8 @@ ${final}
     }
 
     // 4. Construct Tweet with Evals
-    const tweetText = `Code Transmutation Engine Report 🧬\n\nI just evolved some code through ${cycles} quantum cycles.\n\nEvals:\n🔥 Entropy: ${heatTemp}\n❄️ Stabilization: ${coolTemp}\n🤖 Model: ${state.activeModel || "gemini-2.5-flash"}\n\nWitness the transmutation:`;
+    const modelLabel = state.activeModel || getProvider(providerId)?.displayName || providerId;
+    const tweetText = `Code Transmutation Engine Report 🧬\n\nI just evolved some code through ${cycles} quantum cycles.\n\nEvals:\n🔥 Entropy: ${heatTemp}\n❄️ Stabilization: ${coolTemp}\n🤖 Model: ${modelLabel}\n\nWitness the transmutation:`;
     
     const shareUrl = url.toString();
     const twitterIntent = `https://x.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(shareUrl)}`;
@@ -677,20 +786,38 @@ ${final}
             <div>
                 <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
                     Code Transmutation Engine
-                    <div className="relative group">
+                </h1>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <div className="bg-slate-800 rounded-lg p-1 border border-slate-700 flex">
+                    <button
+                      className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide ${engineMode === 'hallucination' ? 'bg-magma-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                      onClick={() => setEngineMode('hallucination')}
+                      disabled={state.isProcessing}
+                    >
+                      Hallucination Lab
+                    </button>
+                    <button
+                      className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide ${engineMode === 'optimizer' ? 'bg-frost-600 text-white' : 'text-slate-400 hover:text-white'}`}
+                      onClick={() => setEngineMode('optimizer')}
+                      disabled={state.isProcessing}
+                    >
+                      Refactor Tool
+                    </button>
+                  </div>
+                  <div className="relative group">
                         <select
-                            value={selectedModel}
-                            onChange={(e) => setSelectedModel(e.target.value)}
+                            value={providerId}
+                            onChange={(e) => setProviderId(e.target.value as LLMProviderId)}
                             disabled={state.isProcessing}
                             className="appearance-none bg-slate-800 border border-slate-700 text-slate-400 text-[10px] uppercase tracking-wider pl-2 pr-6 py-0.5 rounded font-mono hover:border-slate-500 focus:outline-none focus:border-magma-500 cursor-pointer disabled:opacity-50 transition-colors"
                         >
-                            <option value="auto">AUTO (SMART)</option>
-                            <option value="gemini-2.5-flash">GEMINI 2.5 FLASH</option>
-                            <option value="gemini-3-pro-preview">GEMINI 3 PRO</option>
+                            {providers.map((p) => (
+                              <option key={p.id} value={p.id}>{p.displayName}</option>
+                            ))}
                         </select>
                         <ChevronDown className="w-3 h-3 text-slate-500 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
-                </h1>
+                </div>
                 <p className="text-xs text-slate-500 font-mono hidden sm:block">SOURCE_SPEC + ENTROPY({heatTemp}) + STABILIZATION({coolTemp}) = EVOLUTION</p>
             </div>
           </div>
@@ -769,6 +896,12 @@ ${final}
                     <p className="text-red-200/80 text-sm mt-1">{state.error}</p>
                 </div>
             </div>
+        )}
+
+        {engineMode === 'optimizer' && refactorReport && (
+          <div className="mb-8">
+            <RefactorResultPanel report={refactorReport} />
+          </div>
         )}
 
         {viewMode === 'analysis' && state.history.length > 0 ? (
