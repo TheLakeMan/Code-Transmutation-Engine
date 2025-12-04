@@ -1,19 +1,19 @@
 
-import React, { useState, useReducer, useCallback, useEffect, useRef } from 'react';
+import React, { UseState, UseReducer, UseCallback, UseEffect, UseRef } from 'React';
 import { ProcessVisualizer } from './components/ProcessVisualizer';
 import { HistoryLog } from './components/HistoryLog';
 import { CodeEditor } from './components/CodeEditor';
 import { IgnitionState, ProcessPhase, SavedSession, Language } from './types';
 import { FlaskConical, Play, Square, RotateCcw, AlertTriangle, Info, ThermometerSun, ThermometerSnowflake, Save, FolderOpen, Check, Loader2, Code2, Copy, FileDown, Eraser, Lock, FileImage, ChevronDown, LayoutDashboard, Terminal } from 'lucide-react';
-import { detectLanguage } from './utils/languageDetector';
+import { DetectLanguage } from './utils/languageDetector';
 import { ExamplesDropdown } from './components/ExamplesDropdown';
 import { AutogramReport } from './components/AutogramReport';
 import { AnalysisDashboard } from './components/AnalysisDashboard';
-import { calculateMetrics } from './utils/codeMetrics';
-import { ignite } from './services/alchemyEngine';
-import { optimizeCode } from './services/optimizer/optimizerService';
+import { CalculateMetrics } from './utils/codeMetrics';
+import { Ignite } from './services/alchemyEngine';
+import { OptimizeCode } from './services/optimizer/optimizerService';
 import { RefactorResultPanel } from './components/RefactorResultPanel';
-import { getProvider, listProviders } from './services/llm';
+import { GetProvider, ListProviders } from './services/llm';
 import type { LLMProviderId } from './services/llm/types';
 import type { RefactorReport } from './services/optimizer/types';
 import type { EngineMode } from './types/engine';
